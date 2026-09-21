@@ -265,6 +265,7 @@
         const response = await fetch(GOOGLE_SCRIPT_URL);
         hikes = await response.json();
         console.log("Dati caricati:", hikes.length, "camminate");
+        console.log("Camminate :", hikes, "camminate");
       } catch (err) {
         console.error("Errore caricamento:", err);
         alert("Errore nel caricamento dei dati. Controlla la connessione.");
