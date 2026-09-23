@@ -11,7 +11,7 @@
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <!-- Chart.js per i Grafici -->
+  <!-- Chart.js per i Grafici Statistiche -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
   <style>
@@ -27,7 +27,7 @@
     <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
       <div>
         <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">🏔️ Dashboard Camminate</h1>
-        <p class="text-emerald-200 text-xs sm:text-sm">Gestione percorsi con Firebase</p>
+        <p class="text-emerald-200 text-xs sm:text-sm">Gestione percorsi con Firebase Realtime Database</p>
       </div>
 
       <!-- Pulsante Nuova Camminata -->
@@ -55,7 +55,7 @@
              class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-60 focus:outline-none focus:ring-2 focus:ring-emerald-500">
       
       <div class="flex flex-wrap items-center gap-3 text-xs font-medium text-gray-700">
-        <!-- FILTRO DIFFICOLTÀ (Sostituisce Tipo) -->
+        <!-- FILTRO DIFFICOLTÀ -->
         <select id="filter-difficolta" class="border border-gray-300 rounded-lg px-2 py-2 bg-white">
           <option value="all">Tutte le Difficoltà</option>
           <option value="⭐">⭐ Facile</option>
@@ -87,7 +87,7 @@
 
     <!-- VISTA 1: Lista Schede -->
     <div id="view-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div class="col-span-full text-center py-20 text-gray-400">Caricamento camminate...</div>
+      <div class="col-span-full text-center py-20 text-gray-400">Caricamento camminate da Firebase...</div>
     </div>
 
     <!-- VISTA 2: Mappa Schermo Intero -->
@@ -97,7 +97,6 @@
 
     <!-- VISTA 3: Dashboard Statistiche con GRAFICI -->
     <div id="view-stats" class="hidden space-y-6">
-      <!-- Schede KPI -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center">
           <span class="text-3xl font-extrabold text-emerald-700 block" id="stat-total-count">0</span>
@@ -105,7 +104,7 @@
         </div>
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center">
           <span class="text-3xl font-extrabold text-blue-600 block" id="stat-total-km">0</span>
-          <span class="text-xs uppercase text-gray-500 font-semibold">Km Percorsi</span>
+          <span class="text-xs uppercase text-gray-500 font-semibold">Km Completati</span>
         </div>
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center">
           <span class="text-3xl font-extrabold text-amber-600 block" id="stat-total-elevation">0</span>
@@ -117,7 +116,7 @@
         </div>
       </div>
 
-      <!-- GRAFICI -->
+      <!-- Grafici -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
           <h3 class="font-bold text-gray-800 text-sm mb-4">📊 Stato Camminate (Completate vs Da Fare)</h3>
@@ -205,14 +204,12 @@
           </div>
         </div>
 
-        <!-- Coordinate Parcheggio -->
         <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200">
           <label class="block font-bold text-emerald-900 mb-1">📍 Coordinate Parcheggio (Latitudine, Longitudine)</label>
           <input type="text" id="add-parcheggio" placeholder="es. 46.486956, 11.317339" class="w-full border rounded-lg p-2 bg-white text-xs">
           <p class="text-[10px] text-gray-500 mt-1">Incolla qui le coordinate Google Maps per il navigatore.</p>
         </div>
 
-        <!-- Combobox Stagioni -->
         <div class="relative">
           <label class="block font-semibold text-gray-700 mb-1">Stagione consigliata (Multi-Selezione)</label>
           <button type="button" id="combo-stagioni-btn" class="w-full border rounded-lg p-2 text-left bg-white flex justify-between items-center text-xs text-gray-700 border-gray-300 focus:ring-2 focus:ring-emerald-500">
@@ -281,25 +278,25 @@
     </div>
   </div>
 
-  <!-- JavaScript Mappe, Grafici & Firebase -->
+  <!-- JavaScript Leaflet & Firebase Realtime Database -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getDatabase, ref, onValue, update, remove, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Configurazione Firebase
+    // Configurazione Firebase con Realtime Database URL
     const firebaseConfig = {
       apiKey: "AIzaSyDmcLYWQMpoB_Ws4S6fQ7i_5oOtmLzHopA",
       authDomain: "camminate-1f370.firebaseapp.com",
+      databaseURL: "https://camminate-1f370-default-rtdb.europe-west1.firebasedatabase.app",
       projectId: "camminate-1f370",
       storageBucket: "camminate-1f370.firebasestorage.app",
       messagingSenderId: "179844942262",
-      appId: "1:179844942262:web:105b3982c2059fedea1917",
-      measurementId: "G-GYFRQ95N5Z"
+      appId: "1:179844942262:web:105b3982c2059fedea1917"
     };
 
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    const db = getDatabase(app);
 
     let map = null;
     let activeMarkers = [];
@@ -318,14 +315,24 @@
     let hikesData = [];
     let currentTab = 'da_fare';
 
-    // Istante dei Grafici
+    // Istanza Grafici
     let chartStatoInstance = null;
     let chartDiffInstance = null;
     let chartStagioniInstance = null;
 
-    // Ascolto Firestore Realtime
-    onSnapshot(collection(db, "camminate"), (snapshot) => {
-      hikesData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Lettura Dati in Tempo Reale da Realtime Database
+    const camminateRef = ref(db, 'camminate');
+    onValue(camminateRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        if (Array.isArray(data)) {
+          hikesData = data.map((item, idx) => ({ id: String(idx), ...item })).filter(h => h.nome);
+        } else {
+          hikesData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+        }
+      } else {
+        hikesData = [];
+      }
       updateCounts();
       renderCurrentTab();
     });
@@ -342,8 +349,8 @@
       let kmFatti = 0, dislivelloFatto = 0, passeggini = 0;
       hikesData.forEach(h => {
         if (h.fatto) {
-          kmFatti += h.lunghezza_km || 0;
-          dislivelloFatto += h.dislivello_m || 0;
+          kmFatti += parseFloat(h.lunghezza_km) || 0;
+          dislivelloFatto += parseInt(h.dislivello_m) || 0;
         }
         if (h.passeggino) passeggini++;
       });
@@ -448,12 +455,12 @@
 
     function parseCoordinates(str) {
       if (!str) return null;
-      const decMatch = str.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+      const decMatch = String(str).match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
       if (decMatch) {
         return { lat: parseFloat(decMatch[1]), lng: parseFloat(decMatch[2]) };
       }
-      const dmsLat = str.match(/(\d+)°(\d+)'([\d.]+)"?\s*([NS])/i);
-      const dmsLng = str.match(/(\d+)°(\d+)'([\d.]+)"?\s*([EW])/i);
+      const dmsLat = String(str).match(/(\d+)°(\d+)'([\d.]+)"?\s*([NS])/i);
+      const dmsLng = String(str).match(/(\d+)°(\d+)'([\d.]+)"?\s*([EW])/i);
       if (dmsLat && dmsLng) {
         let lat = parseInt(dmsLat[1]) + parseInt(dmsLat[2])/60 + parseFloat(dmsLat[3])/3600;
         if (dmsLat[4].toUpperCase() === "S") lat = -lat;
@@ -594,7 +601,7 @@
           e.stopPropagation();
           const id = e.currentTarget.dataset.id;
           const nuovoFatto = e.currentTarget.dataset.fatto === 'true';
-          await updateDoc(doc(db, "camminate", id), { fatto: nuovoFatto });
+          await update(ref(db, `camminate/${id}`), { fatto: nuovoFatto });
         });
       });
 
@@ -604,7 +611,7 @@
           e.stopPropagation();
           const id = e.currentTarget.dataset.id;
           const nuovoFav = e.currentTarget.dataset.fav === 'true';
-          await updateDoc(doc(db, "camminate", id), { preferito: nuovoFav });
+          await update(ref(db, `camminate/${id}`), { preferito: nuovoFav });
         });
       });
 
@@ -621,7 +628,7 @@
         b.addEventListener('click', async (e) => {
           const id = e.currentTarget.dataset.id;
           if (confirm("Vuoi davvero eliminare questa camminata?")) {
-            await deleteDoc(doc(db, "camminate", id));
+            await remove(ref(db, `camminate/${id}`));
           }
         });
       });
@@ -787,9 +794,9 @@
       };
 
       if (editId) {
-        await updateDoc(doc(db, "camminate", editId), hikePayload);
+        await update(ref(db, `camminate/${editId}`), hikePayload);
       } else {
-        await addDoc(collection(db, "camminate"), hikePayload);
+        await push(ref(db, 'camminate'), hikePayload);
       }
 
       modal.classList.add('hidden');
