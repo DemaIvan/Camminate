@@ -10,6 +10,9 @@
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Chart.js per i Grafici -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
   <style>
     #map { height: 550px; z-index: 1; }
@@ -24,7 +27,7 @@
     <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
       <div>
         <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">🏔️ Dashboard Camminate</h1>
-        <p class="text-emerald-200 text-xs sm:text-sm">Gestione percorsi con Firebase Realtime Database</p>
+        <p class="text-emerald-200 text-xs sm:text-sm">Gestione percorsi con Firebase</p>
       </div>
 
       <!-- Pulsante Nuova Camminata -->
@@ -52,10 +55,14 @@
              class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-60 focus:outline-none focus:ring-2 focus:ring-emerald-500">
       
       <div class="flex flex-wrap items-center gap-3 text-xs font-medium text-gray-700">
-        <select id="filter-tipo" class="border border-gray-300 rounded-lg px-2 py-2 bg-white">
-          <option value="all">Tutti i Tipi</option>
-          <option value="🥾 Camminata">🥾 Camminata</option>
-          <option value="🧗‍♂️ Ferrata">🧗‍♂️ Ferrata</option>
+        <!-- FILTRO DIFFICOLTÀ (Sostituisce Tipo) -->
+        <select id="filter-difficolta" class="border border-gray-300 rounded-lg px-2 py-2 bg-white">
+          <option value="all">Tutte le Difficoltà</option>
+          <option value="⭐">⭐ Facile</option>
+          <option value="⭐⭐">⭐⭐ Media</option>
+          <option value="⭐⭐⭐">⭐⭐⭐ Impegnativa</option>
+          <option value="⭐⭐⭐⭐">⭐⭐⭐⭐ Molto Impegnativa</option>
+          <option value="⭐⭐⭐⭐⭐">⭐⭐⭐⭐⭐ Esperti</option>
         </select>
 
         <select id="filter-stagione" class="border border-gray-300 rounded-lg px-2 py-2 bg-white">
@@ -88,8 +95,9 @@
       <div id="map" class="rounded-2xl shadow-md border border-gray-200"></div>
     </div>
 
-    <!-- VISTA 3: Dashboard Statistiche -->
+    <!-- VISTA 3: Dashboard Statistiche con GRAFICI -->
     <div id="view-stats" class="hidden space-y-6">
+      <!-- Schede KPI -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center">
           <span class="text-3xl font-extrabold text-emerald-700 block" id="stat-total-count">0</span>
@@ -106,6 +114,30 @@
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center">
           <span class="text-3xl font-extrabold text-purple-600 block" id="stat-stroller-count">0</span>
           <span class="text-xs uppercase text-gray-500 font-semibold">Adatte a Passeggini</span>
+        </div>
+      </div>
+
+      <!-- GRAFICI -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+          <h3 class="font-bold text-gray-800 text-sm mb-4">📊 Stato Camminate (Completate vs Da Fare)</h3>
+          <div class="h-64 flex justify-center items-center relative">
+            <canvas id="chart-stato"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+          <h3 class="font-bold text-gray-800 text-sm mb-4">🎯 Distribuzione per Difficoltà</h3>
+          <div class="h-64 flex justify-center items-center relative">
+            <canvas id="chart-difficolta"></canvas>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 md:col-span-2">
+          <h3 class="font-bold text-gray-800 text-sm mb-4">🌸 Camminate per Stagione Consigliata</h3>
+          <div class="h-64 relative">
+            <canvas id="chart-stagioni"></canvas>
+          </div>
         </div>
       </div>
     </div>
@@ -173,14 +205,14 @@
           </div>
         </div>
 
-        <!-- CAMPO PARCHEGGIO UNICO (Coordinate) -->
+        <!-- Coordinate Parcheggio -->
         <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200">
           <label class="block font-bold text-emerald-900 mb-1">📍 Coordinate Parcheggio (Latitudine, Longitudine)</label>
           <input type="text" id="add-parcheggio" placeholder="es. 46.486956, 11.317339" class="w-full border rounded-lg p-2 bg-white text-xs">
-          <p class="text-[10px] text-gray-500 mt-1">Incolla qui le coordinate Google Maps per il navigatore e per rilevare il comune.</p>
+          <p class="text-[10px] text-gray-500 mt-1">Incolla qui le coordinate Google Maps per il navigatore.</p>
         </div>
 
-        <!-- COMBOBOX MULTI-SELECT STAGIONI -->
+        <!-- Combobox Stagioni -->
         <div class="relative">
           <label class="block font-semibold text-gray-700 mb-1">Stagione consigliata (Multi-Selezione)</label>
           <button type="button" id="combo-stagioni-btn" class="w-full border rounded-lg p-2 text-left bg-white flex justify-between items-center text-xs text-gray-700 border-gray-300 focus:ring-2 focus:ring-emerald-500">
@@ -218,7 +250,6 @@
           <textarea id="add-note" rows="2" class="w-full border rounded-lg p-2"></textarea>
         </div>
 
-        <!-- CHECKBOX DI SERVIZIO -->
         <div class="grid grid-cols-2 gap-2 pt-1 text-xs font-medium border-t">
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" id="add-passeggino" class="w-4 h-4 text-emerald-600 rounded">
@@ -244,23 +275,22 @@
 
         <div class="flex justify-end gap-3 pt-4 border-t">
           <button type="button" id="btn-cancel-modal" class="px-4 py-2 border rounded-lg text-gray-600">Annulla</button>
-          <button type="submit" id="btn-save" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700">Salva Camminata</button>
+          <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700">Salva Camminata</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- JavaScript Mappe & Firebase Realtime Database -->
+  <!-- JavaScript Mappe, Grafici & Firebase -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, onValue, push, update, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // ✅ Configurazione Firebase Realtime Database
+    // Configurazione Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyDmcLYWQMpoB_Ws4S6fQ7i_5oOtmLzHopA",
       authDomain: "camminate-1f370.firebaseapp.com",
-      databaseURL: "https://camminate-1f370-default-rtdb.europe-west1.firebasedatabase.app",
       projectId: "camminate-1f370",
       storageBucket: "camminate-1f370.firebasestorage.app",
       messagingSenderId: "179844942262",
@@ -269,18 +299,18 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    const db = getFirestore(app);
 
     let map = null;
     let activeMarkers = [];
 
-    // Mappa Esri Topo (Senza filigrane)
     function initMap() {
       if (!map) {
         map = L.map('map').setView([46.62, 11.45], 9);
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-          attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
-          maxZoom: 18
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OpenStreetMap &copy; CARTO',
+          subdomains: 'abcd',
+          maxZoom: 19
         }).addTo(map);
       }
     }
@@ -288,22 +318,16 @@
     let hikesData = [];
     let currentTab = 'da_fare';
 
-    // ASCOLTO IN TEMPO REALE DA REALTIME DATABASE
-    onValue(ref(db, 'camminate'), (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        hikesData = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-      } else {
-        hikesData = [];
-      }
+    // Istante dei Grafici
+    let chartStatoInstance = null;
+    let chartDiffInstance = null;
+    let chartStagioniInstance = null;
+
+    // Ascolto Firestore Realtime
+    onSnapshot(collection(db, "camminate"), (snapshot) => {
+      hikesData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       updateCounts();
       renderCurrentTab();
-    }, (error) => {
-      console.error("Errore Realtime Database:", error);
-      alert("Errore di permessi Realtime Database! Verifica la scheda Regole su Firebase Console.");
     });
 
     function updateCounts() {
@@ -328,16 +352,108 @@
       document.getElementById('stat-total-km').innerText = kmFatti.toFixed(1);
       document.getElementById('stat-total-elevation').innerText = dislivelloFatto.toLocaleString();
       document.getElementById('stat-stroller-count').innerText = passeggini;
+
+      renderCharts();
+    }
+
+    function renderCharts() {
+      if (typeof Chart === 'undefined') return;
+
+      // 1. Chart Stato (Fatte vs Da Fare)
+      const fatteCount = hikesData.filter(h => h.fatto).length;
+      const daFareCount = hikesData.length - fatteCount;
+
+      const ctxStato = document.getElementById('chart-stato');
+      if (ctxStato) {
+        if (chartStatoInstance) chartStatoInstance.destroy();
+        chartStatoInstance = new Chart(ctxStato, {
+          type: 'doughnut',
+          data: {
+            labels: ['Completate ✅', 'Da Fare 🎯'],
+            datasets: [{
+              data: [fatteCount, daFareCount],
+              backgroundColor: ['#10b981', '#f59e0b']
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+      }
+
+      // 2. Chart Difficoltà
+      const diffCounts = { '⭐': 0, '⭐⭐': 0, '⭐⭐⭐': 0, '⭐⭐⭐⭐': 0, '⭐⭐⭐⭐⭐': 0 };
+      hikesData.forEach(h => {
+        if (h.difficolta && diffCounts[h.difficolta] !== undefined) {
+          diffCounts[h.difficolta]++;
+        }
+      });
+
+      const ctxDiff = document.getElementById('chart-difficolta');
+      if (ctxDiff) {
+        if (chartDiffInstance) chartDiffInstance.destroy();
+        chartDiffInstance = new Chart(ctxDiff, {
+          type: 'pie',
+          data: {
+            labels: ['Facile ⭐', 'Media ⭐⭐', 'Impegnativa ⭐⭐⭐', 'Molto Imp. ⭐⭐⭐⭐', 'Esperti ⭐⭐⭐⭐⭐'],
+            datasets: [{
+              data: Object.values(diffCounts),
+              backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+          }
+        });
+      }
+
+      // 3. Chart Stagioni
+      const stagioniCounts = { '🌸 Primavera': 0, '☀️ Estate': 0, '🍂 Autunno': 0, '❄️ Inverno': 0 };
+      hikesData.forEach(h => {
+        const list = Array.isArray(h.stagione) ? h.stagione : [h.stagione || ''];
+        list.forEach(s => {
+          if (s.includes('Primavera')) stagioniCounts['🌸 Primavera']++;
+          if (s.includes('Estate')) stagioniCounts['☀️ Estate']++;
+          if (s.includes('Autunno')) stagioniCounts['🍂 Autunno']++;
+          if (s.includes('Inverno')) stagioniCounts['❄️ Inverno']++;
+        });
+      });
+
+      const ctxStagioni = document.getElementById('chart-stagioni');
+      if (ctxStagioni) {
+        if (chartStagioniInstance) chartStagioniInstance.destroy();
+        chartStagioniInstance = new Chart(ctxStagioni, {
+          type: 'bar',
+          data: {
+            labels: Object.keys(stagioniCounts),
+            datasets: [{
+              label: 'Numero Camminate',
+              data: Object.values(stagioniCounts),
+              backgroundColor: ['#f472b6', '#fbbf24', '#f97316', '#38bdf8']
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+          }
+        });
+      }
     }
 
     function parseCoordinates(str) {
       if (!str) return null;
-      const decMatch = String(str).match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+      const decMatch = str.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
       if (decMatch) {
         return { lat: parseFloat(decMatch[1]), lng: parseFloat(decMatch[2]) };
       }
-      const dmsLat = String(str).match(/(\d+)°(\d+)'([\d.]+)"?\s*([NS])/i);
-      const dmsLng = String(str).match(/(\d+)°(\d+)'([\d.]+)"?\s*([EW])/i);
+      const dmsLat = str.match(/(\d+)°(\d+)'([\d.]+)"?\s*([NS])/i);
+      const dmsLng = str.match(/(\d+)°(\d+)'([\d.]+)"?\s*([EW])/i);
       if (dmsLat && dmsLng) {
         let lat = parseInt(dmsLat[1]) + parseInt(dmsLat[2])/60 + parseFloat(dmsLat[3])/3600;
         if (dmsLat[4].toUpperCase() === "S") lat = -lat;
@@ -361,6 +477,7 @@
 
       if (currentTab === 'stats') {
         viewStats.classList.remove('hidden');
+        renderCharts();
         return;
       }
 
@@ -376,7 +493,7 @@
       viewCards.classList.remove('hidden');
 
       const search = document.getElementById('search-input').value.toLowerCase();
-      const tipoFilter = document.getElementById('filter-tipo').value;
+      const difficoltaFilter = document.getElementById('filter-difficolta').value;
       const stagioneFilter = document.getElementById('filter-stagione').value;
       const strollerOnly = document.getElementById('filter-stroller').checked;
       const playgroundOnly = document.getElementById('filter-playground').checked;
@@ -385,7 +502,7 @@
         if (currentTab === 'da_fare' && h.fatto) return false;
         if (currentTab === 'fatte' && !h.fatto) return false;
         if (currentTab === 'preferite' && !h.preferito) return false;
-        if (tipoFilter !== 'all' && (h.tipo || '🥾 Camminata') !== tipoFilter) return false;
+        if (difficoltaFilter !== 'all' && (h.difficolta || '') !== difficoltaFilter) return false;
         if (stagioneFilter !== 'all' && !(h.stagione || []).includes(stagioneFilter)) return false;
         if (strollerOnly && !h.passeggino) return false;
         if (playgroundOnly && !h.parco_giochi) return false;
@@ -447,11 +564,18 @@
           </div>
 
           <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs">
-            ${navUrl ? `
-              <a href="${navUrl}" target="_blank" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
-                🚗 Naviga Parcheggio
-              </a>
-            ` : '<span class="text-gray-400 text-[10px]">No Coord. Parcheggio</span>'}
+            <div class="flex items-center gap-2">
+              <!-- BOTTONE COMPLETATA DIRETTO -->
+              <button data-id="${hike.id}" data-fatto="${!hike.fatto}" class="btn-toggle-fatto font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1 text-xs ${hike.fatto ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-gray-100 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700'}">
+                ${hike.fatto ? '✅ Completata' : '⬜ Da fare'}
+              </button>
+
+              ${navUrl ? `
+                <a href="${navUrl}" target="_blank" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
+                  🚗 Naviga
+                </a>
+              ` : ''}
+            </div>
 
             <div class="flex items-center gap-2">
               ${hike.link ? `<a href="${hike.link}" target="_blank" class="text-blue-600 font-bold hover:underline">Link ↗</a>` : ''}
@@ -464,16 +588,27 @@
         viewCards.appendChild(card);
       });
 
-      // Preferiti
-      document.querySelectorAll('.btn-toggle-fav').forEach(b => {
+      // EVENT LISTENER COMPLETATA DIRETTO
+      document.querySelectorAll('.btn-toggle-fatto').forEach(b => {
         b.addEventListener('click', async (e) => {
+          e.stopPropagation();
           const id = e.currentTarget.dataset.id;
-          const nuovoFav = e.currentTarget.dataset.fav === 'true';
-          await update(ref(db, `camminate/${id}`), { preferito: nuovoFav });
+          const nuovoFatto = e.currentTarget.dataset.fatto === 'true';
+          await updateDoc(doc(db, "camminate", id), { fatto: nuovoFatto });
         });
       });
 
-      // Modifica
+      // EVENT LISTENER PREFERITI
+      document.querySelectorAll('.btn-toggle-fav').forEach(b => {
+        b.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = e.currentTarget.dataset.id;
+          const nuovoFav = e.currentTarget.dataset.fav === 'true';
+          await updateDoc(doc(db, "camminate", id), { preferito: nuovoFav });
+        });
+      });
+
+      // EVENT LISTENER MODIFICA & ELIMINAZIONE
       document.querySelectorAll('.btn-edit').forEach(b => {
         b.addEventListener('click', (e) => {
           const id = e.currentTarget.dataset.id;
@@ -482,12 +617,11 @@
         });
       });
 
-      // Elimina
       document.querySelectorAll('.btn-delete').forEach(b => {
         b.addEventListener('click', async (e) => {
           const id = e.currentTarget.dataset.id;
           if (confirm("Vuoi davvero eliminare questa camminata?")) {
-            await remove(ref(db, `camminate/${id}`));
+            await deleteDoc(doc(db, "camminate", id));
           }
         });
       });
@@ -501,42 +635,22 @@
         const coords = parseCoordinates(hike.parcheggio || '') || (hike.lat && hike.lng ? { lat: hike.lat, lng: hike.lng } : null);
         if (coords) {
           const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`;
-          
-          const popupContent = `
-            <div class="font-sans text-xs p-1 space-y-1.5" style="min-width: 190px;">
-              <div class="font-bold text-sm text-gray-900 border-b pb-1">${hike.nome}</div>
-              <div class="text-gray-600 flex items-center gap-1 font-medium">📍 <span>${hike.comune || 'N/D'}</span></div>
-              
-              <div class="flex flex-wrap items-center gap-2 font-medium text-gray-700 bg-gray-50 p-1.5 rounded-lg border border-gray-100">
-                <span>${hike.difficolta || '⭐'}</span>
-                <span>⏱️ ${hike.tempo || 0}h</span>
-                <span>📏 ${hike.lunghezza_km || 0}km</span>
-                <span>📈 ${hike.dislivello_m || 0}m</span>
-              </div>
-
-              <div class="flex items-center gap-2 font-medium text-gray-700">
-                <span>${hike.parcheggio_pagamento ? '🅿️💶 Pagamento' : '🅿️🆓 Gratuito'}</span>
-                ${hike.passeggino ? '<span>👶</span>' : ''}
-                ${hike.parco_giochi ? '<span>🛝</span>' : ''}
-              </div>
-
-              <a href="${navUrl}" target="_blank" 
-                 style="background-color: #059669; color: #ffffff !important;" 
-                 class="block text-center w-full mt-2 font-bold text-xs py-2 px-3 rounded-xl shadow hover:bg-emerald-700 no-underline transition">
-                🚗 Naviga al Parcheggio
-              </a>
-            </div>
-          `;
-
           const marker = L.marker([coords.lat, coords.lng])
-            .bindPopup(popupContent)
+            .bindPopup(`
+              <div class="font-sans">
+                <b class="text-emerald-800 text-sm">${hike.nome}</b><br>
+                <span class="text-xs text-gray-600">📍 ${hike.comune || ''}</span><br>
+                <span class="text-xs">⏱️ ${hike.tempo || 0}h | 📏 ${hike.lunghezza_km || 0} km</span><br>
+                <a href="${navUrl}" target="_blank" class="inline-block mt-2 bg-emerald-600 text-white font-bold text-xs px-2 py-1 rounded no-underline">🚗 Indicazioni Parcheggio</a>
+              </div>
+            `)
             .addTo(map);
           activeMarkers.push(marker);
         }
       });
     }
 
-    // GEOCODING AUTOMATICO COMUNE
+    // GEOCODING AUTOMATICO
     async function fetchComuneFromCoordsStr(str) {
       const coords = parseCoordinates(str);
       if (!coords) return;
@@ -560,7 +674,7 @@
       fetchComuneFromCoordsStr(e.target.value);
     });
 
-    // COMBOBOX STAGIONI
+    // COMBOBOX STAGIONI MULTI-SELECT
     const comboBtn = document.getElementById('combo-stagioni-btn');
     const comboMenu = document.getElementById('combo-stagioni-menu');
     const comboLabel = document.getElementById('combo-stagioni-label');
@@ -601,14 +715,9 @@
       updateComboLabel();
     }
 
-    // MODALE GESTIONE (Aggiungi vs Modifica)
+    // MODALE GESTIONE
     const modal = document.getElementById('modal-add');
     
-    function closeModal() {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-    }
-
     function openModalForAdd() {
       document.getElementById('form-add-hike').reset();
       document.getElementById('edit-id').value = "";
@@ -644,20 +753,16 @@
     }
 
     document.getElementById('btn-open-modal').onclick = openModalForAdd;
-    document.getElementById('btn-close-modal').onclick = closeModal;
-    document.getElementById('btn-cancel-modal').onclick = closeModal;
+    document.getElementById('btn-close-modal').onclick = () => modal.classList.add('hidden');
+    document.getElementById('btn-cancel-modal').onclick = () => modal.classList.add('hidden');
 
-    // SALVATAGGIO IN REALTIME DATABASE CON CHIUSURA MODALE
     document.getElementById('form-add-hike').addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const btnSave = document.getElementById('btn-save');
-      btnSave.disabled = true;
-      btnSave.innerText = "Salvataggio in corso...";
-
       const editId = document.getElementById('edit-id').value;
       const parcheggioStr = document.getElementById('add-parcheggio').value.trim();
       const coords = parseCoordinates(parcheggioStr);
+
       const selectedStagioni = Array.from(document.querySelectorAll('.combo-stagione-cb:checked')).map(cb => cb.value);
 
       const hikePayload = {
@@ -681,20 +786,13 @@
         preferito: document.getElementById('add-preferito').checked
       };
 
-      try {
-        if (editId) {
-          await update(ref(db, `camminate/${editId}`), hikePayload);
-        } else {
-          await push(ref(db, 'camminate'), hikePayload);
-        }
-        closeModal();
-      } catch (err) {
-        console.error("Errore salvataggio:", err);
-        alert("Errore durante il salvataggio! Controlla le Regole del Realtime Database.");
-      } finally {
-        btnSave.disabled = false;
-        btnSave.innerText = "Salva Camminata";
+      if (editId) {
+        await updateDoc(doc(db, "camminate", editId), hikePayload);
+      } else {
+        await addDoc(collection(db, "camminate"), hikePayload);
       }
+
+      modal.classList.add('hidden');
     });
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -713,7 +811,7 @@
 
     // Filtri
     document.getElementById('search-input').addEventListener('input', renderCurrentTab);
-    document.getElementById('filter-tipo').addEventListener('change', renderCurrentTab);
+    document.getElementById('filter-difficolta').addEventListener('change', renderCurrentTab);
     document.getElementById('filter-stagione').addEventListener('change', renderCurrentTab);
     document.getElementById('filter-stroller').addEventListener('change', renderCurrentTab);
     document.getElementById('filter-playground').addEventListener('change', renderCurrentTab);
