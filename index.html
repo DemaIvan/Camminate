@@ -205,6 +205,22 @@
     <div class="flex justify-end gap-3"><button id="complete-cancel" class="px-4 py-2 border rounded-lg text-gray-600">Annulla</button><button id="complete-save" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold">Salva e completa</button></div>
   </div>
 </div>
+<!-- MODALE VISUALIZZAZIONE TRACCIA GPS -->
+<div id="modal-gpx-view" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-3 sm:p-5 z-[70]">
+  <div class="bg-white rounded-2xl max-w-6xl w-full shadow-2xl overflow-hidden max-h-[95vh] flex flex-col">
+    <div class="p-4 border-b flex items-center justify-between gap-3">
+      <div><h2 id="gpx-view-title" class="text-xl font-bold text-gray-900">🗺️ Traccia GPS</h2><p id="gpx-view-info" class="text-xs text-gray-500 mt-1"></p></div>
+      <button id="gpx-view-close" class="text-gray-400 hover:text-gray-700 text-3xl leading-none">&times;</button>
+    </div>
+    <div class="p-3 sm:p-4 overflow-y-auto">
+      <div id="gpx-view-map" class="w-full h-[50vh] min-h-[330px] rounded-xl border border-gray-200"></div>
+      <div class="mt-4 bg-gray-50 rounded-xl border p-3">
+        <div class="flex items-center justify-between mb-2"><h3 class="font-bold text-sm text-gray-800">📈 Profilo altimetrico</h3><span id="gpx-view-elev-info" class="text-xs text-gray-500"></span></div>
+        <div class="h-48"><canvas id="gpx-elevation-chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
@@ -468,7 +484,8 @@ function renderCurrentTab() {
           ${navUrl?`<a href="${navUrl}" target="_blank" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold px-2.5 py-1.5 rounded-lg">🚗 Naviga</a>`:""}
         </div>
         <div class="flex items-center gap-2">
-          ${h.link?`<a href="${h.link}" target="_blank" class="text-blue-600 font-bold hover:underline">Link ↗</a>`:""}
+          ${Array.isArray(h.gpx_track)&&h.gpx_track.length?`<button data-id="${h.id}" class="btn-view-gpx text-emerald-700 font-bold hover:underline">🗺️ Traccia</button>`:""}
+          ${h.link?`<a href="${h.link}" target="_blank" rel="noopener noreferrer" class="text-blue-600 font-bold hover:underline">${/komoot\./i.test(h.link)?"🟢 Komoot":/wikiloc\./i.test(h.link)?"🟠 Wikiloc":/outdooractive\./i.test(h.link)?"🔵 Outdooractive":"🔗 Apri"} ↗</a>`:""}
           <button data-id="${h.id}" class="btn-edit text-gray-500 hover:text-emerald-600 font-semibold px-2 py-1 bg-gray-100 rounded-lg">✏️</button>
           <button data-id="${h.id}" class="btn-delete text-gray-400 hover:text-red-600 p-1">🗑️</button>
         </div>
@@ -487,6 +504,9 @@ function renderCurrentTab() {
     e.stopPropagation();const id=e.currentTarget.dataset.id;
     await update(ref(db,`camminate/${id}`),{preferito:e.currentTarget.dataset.fav==="true"});
   }));
+  document.querySelectorAll(".btn-view-gpx").forEach(b=>b.addEventListener("click",e=>{
+    const h=hikesData.find(x=>x.id===e.currentTarget.dataset.id); if(h) openGpxViewer(h);
+  }));
   document.querySelectorAll(".btn-edit").forEach(b=>b.addEventListener("click",e=>{
     const h=hikesData.find(x=>x.id===e.currentTarget.dataset.id);if(h)openModalForEdit(h);
   }));
@@ -494,6 +514,46 @@ function renderCurrentTab() {
     if(confirm("Vuoi davvero eliminare questa camminata?"))await remove(ref(db,`camminate/${e.currentTarget.dataset.id}`));
   }));
 }
+
+let gpxViewMap=null, gpxViewLayer=null, gpxElevationChart=null;
+function openGpxViewer(h){
+  const track=Array.isArray(h.gpx_track)?h.gpx_track:[];
+  if(track.length<2){alert("Questa camminata non ha una traccia GPX salvata.");return;}
+  const modal=document.getElementById("modal-gpx-view");
+  document.getElementById("gpx-view-title").innerText=`🗺️ ${h.nome||"Traccia GPS"}`;
+  const km=Number(h.lunghezza_km)||0, elev=Number(h.dislivello_m)||0;
+  document.getElementById("gpx-view-info").innerText=`${km?`📏 ${km.toFixed(1)} km · `:""}${elev?`⛰️ +${Math.round(elev)} m · `:""}${track.length} punti GPS`;
+  modal.classList.remove("hidden"); modal.classList.add("flex");
+  setTimeout(()=>{
+    if(gpxViewMap){gpxViewMap.remove();gpxViewMap=null;}
+    gpxViewMap=L.map("gpx-view-map");
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(gpxViewMap);
+    const latlngs=track.map(p=>[p.lat,p.lng]);
+    gpxViewLayer=L.polyline(latlngs,{color:"#047857",weight:5,opacity:.9}).addTo(gpxViewMap);
+    L.marker(latlngs[0]).addTo(gpxViewMap).bindTooltip("Partenza");
+    L.marker(latlngs[latlngs.length-1]).addTo(gpxViewMap).bindTooltip("Arrivo");
+    gpxViewMap.fitBounds(gpxViewLayer.getBounds(),{padding:[25,25]});
+    renderGpxElevation(track);
+    gpxViewMap.invalidateSize();
+  },100);
+}
+function renderGpxElevation(track){
+  const samples=[]; let dist=0;
+  for(let i=0;i<track.length;i++){
+    if(i>0) dist+=distanceKm(track[i-1],track[i]);
+    if(Number.isFinite(track[i].ele)) samples.push({x:Number(dist.toFixed(2)),y:track[i].ele});
+  }
+  if(gpxElevationChart)gpxElevationChart.destroy();
+  document.getElementById("gpx-view-elev-info").innerText=samples.length?`Quota: ${Math.round(Math.min(...samples.map(p=>p.y)))}–${Math.round(Math.max(...samples.map(p=>p.y)))} m`:"Altimetria non presente nel GPX";
+  gpxElevationChart=new Chart(document.getElementById("gpx-elevation-chart"),{type:"line",data:{datasets:[{data:samples,parsing:false,borderWidth:2,pointRadius:0,tension:.15,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{type:"linear",title:{display:true,text:"Distanza (km)"}},y:{title:{display:true,text:"Quota (m)"}}}}});
+}
+function closeGpxViewer(){
+  document.getElementById("modal-gpx-view").classList.add("hidden");
+  if(gpxElevationChart){gpxElevationChart.destroy();gpxElevationChart=null;}
+  if(gpxViewMap){gpxViewMap.remove();gpxViewMap=null;}
+}
+document.getElementById("gpx-view-close").addEventListener("click",closeGpxViewer);
+document.getElementById("modal-gpx-view").addEventListener("click",e=>{if(e.target.id==="modal-gpx-view")closeGpxViewer();});
 
 function renderMapMarkers(data){
   if(!map)return;
