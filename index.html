@@ -163,7 +163,19 @@
           <label class="flex items-center gap-2 p-2 hover:bg-emerald-50 rounded-lg cursor-pointer"><input type="checkbox" value="❄️ Inverno" class="combo-stagione-cb"><span>❄️ Inverno</span></label>
         </div>
       </div>
-      <div><label class="block font-semibold text-gray-700 mb-1">Link Tour (Komoot/Outdooractive/Strava)</label><input type="url" id="add-link" class="w-full border rounded-lg p-2"></div>
+      <div class="bg-blue-50 p-3 rounded-xl border border-blue-200">
+        <label class="block font-bold text-blue-900 mb-1">🗺️ Traccia GPS / Link percorso</label>
+        <div class="flex gap-2">
+          <input type="url" id="add-link" placeholder="Incolla link Komoot, Wikiloc, GPX..." class="w-full border rounded-lg p-2 bg-white text-xs">
+          <button type="button" id="btn-import-link" class="px-3 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs whitespace-nowrap">Importa</button>
+        </div>
+        <div class="flex items-center gap-2 mt-2">
+          <input type="file" id="add-gpx-file" accept=".gpx,application/gpx+xml,application/xml,text/xml" class="text-xs w-full">
+        </div>
+        <p id="gpx-status" class="text-[11px] text-gray-600 mt-2">Puoi incollare un link oppure caricare direttamente un file GPX. Se la fonte permette l'accesso, il sito proverà a recuperare la traccia.</p>
+        <div id="gpx-summary" class="hidden text-xs mt-2 bg-white rounded-lg p-2 border"></div>
+      </div>
+      <input type="hidden" id="add-gpx-track" value="">
       <div><label class="block font-semibold text-gray-700 mb-1">Note / Consigli</label><textarea id="add-note" rows="2" class="w-full border rounded-lg p-2"></textarea></div>
       <div class="grid grid-cols-2 gap-2 pt-1 text-xs font-medium border-t">
         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="add-passeggino" class="w-4 h-4 text-emerald-600 rounded"><span>Passeggino 👶</span></label>
@@ -508,6 +520,76 @@ async function fetchComuneFromCoordsStr(str){
   }catch(e){s.innerText="";}
 }
 
+
+function setGpxStatus(msg, ok=false){
+  const el=document.getElementById("gpx-status"); el.innerText=msg; el.className=`text-[11px] mt-2 ${ok?"text-emerald-700":"text-gray-600"}`;
+}
+function showGpxSummary(track, km, elev){
+  const box=document.getElementById("gpx-summary");
+  if(!track?.length){box.classList.add("hidden");return;}
+  box.classList.remove("hidden");
+  box.innerHTML=`<b>✓ Traccia acquisita:</b> ${track.length} punti${km?` · 📏 ${Number(km).toFixed(1)} km`:""}${elev?` · ⛰️ +${Math.round(Number(elev))} m`:""}`;
+}
+function haversineKm(a,b){return distanceKm(a,b);}
+function parseGpxXml(xmlText){
+  const xml=new DOMParser().parseFromString(xmlText,"application/xml");
+  if(xml.querySelector("parsererror")) throw new Error("GPX non valido");
+  const els=[...xml.querySelectorAll("trkpt, rtept, wpt")];
+  if(!els.length) throw new Error("Nessun punto GPS trovato");
+  let points=els.map(e=>({lat:Number(e.getAttribute("lat")),lng:Number(e.getAttribute("lon")),ele:Number(e.querySelector("ele")?.textContent)})).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng));
+  if(!points.length) throw new Error("Coordinate GPS non valide");
+  // Riduciamo la traccia per non appesantire Firebase, mantenendo la geometria.
+  const max=1200;
+  if(points.length>max){const step=(points.length-1)/(max-1);points=Array.from({length:max},(_,i)=>points[Math.round(i*step)]);}
+  let km=0,elev=0;
+  for(let i=1;i<points.length;i++){
+    km+=haversineKm(points[i-1],points[i]);
+    if(Number.isFinite(points[i].ele)&&Number.isFinite(points[i-1].ele)){const d=points[i].ele-points[i-1].ele;if(d>0)elev+=d;}
+  }
+  return {points,km,elev};
+}
+async function importGpxText(text, source="GPX"){
+  const result=parseGpxXml(text);
+  document.getElementById("add-gpx-track").value=JSON.stringify(result.points);
+  // Il GPX è la fonte più affidabile per questi due valori.
+  document.getElementById("add-km").value=result.km.toFixed(1);
+  document.getElementById("add-dislivello").value=Math.round(result.elev);
+  showGpxSummary(result.points,result.km,result.elev);
+  setGpxStatus(`✓ Traccia importata da ${source}. Dati aggiornati automaticamente.`,true);
+  return result;
+}
+async function fetchText(url){
+  const res=await fetch(url,{redirect:"follow"});
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text=await res.text();
+  if(!text.includes("<gpx") && !text.includes("<GPX")) throw new Error("La risposta non contiene un GPX");
+  return text;
+}
+function komootGpxUrl(url){
+  const m=url.match(/komoot\.[^/]+\/tour\/(?:[^/]+\/)?(\d+)/i);
+  return m?`https://www.komoot.com/api/v007/tours/${m[1]}.gpx`:null;
+}
+async function importFromLink(){
+  const input=document.getElementById("add-link").value.trim();
+  if(!input){setGpxStatus("Incolla prima un link.");return;}
+  setGpxStatus("⏳ Provo a recuperare la traccia...");
+  const attempts=[];
+  // 1) Se è già un file GPX, proviamo direttamente.
+  attempts.push(input);
+  // 2) Per Komoot proviamo l'endpoint GPX del tour pubblico.
+  const kg=komootGpxUrl(input); if(kg) attempts.push(kg);
+  for(const url of [...new Set(attempts)]){
+    try{const text=await fetchText(url);const r=await importGpxText(text,"link");return r;}
+    catch(e){console.warn("GPX non recuperato",url,e);}
+  }
+  setGpxStatus("⚠️ Non riesco a leggere automaticamente il GPX da questo link. Il sito potrebbe bloccare l'accesso dal browser o richiedere login. Scarica il GPX e caricalo qui.");
+}
+document.getElementById("btn-import-link").addEventListener("click",importFromLink);
+document.getElementById("add-gpx-file").addEventListener("change",async e=>{
+  const file=e.target.files?.[0]; if(!file)return;
+  try{await importGpxText(await file.text(),file.name);}catch(err){setGpxStatus("⚠️ File GPX non valido: "+err.message);}
+});
+
 const modal=document.getElementById("modal-add");
 const comboBtn=document.getElementById("combo-stagioni-btn"), comboMenu=document.getElementById("combo-stagioni-menu"), comboLabel=document.getElementById("combo-stagioni-label");
 comboBtn.onclick=e=>{e.stopPropagation();comboMenu.classList.toggle("hidden");};
@@ -526,7 +608,7 @@ function setComboStagioniValues(v){
 
 function openModalForAdd(){
   document.getElementById("form-add-hike").reset();document.getElementById("edit-id").value="";
-  setComboStagioniValues([]);document.getElementById("modal-title").innerText="➕ Nuova Camminata";
+  setComboStagioniValues([]);document.getElementById("add-gpx-track").value="[]";document.getElementById("gpx-status").innerText="Puoi incollare un link oppure caricare direttamente un file GPX.";document.getElementById("gpx-summary").classList.add("hidden");document.getElementById("modal-title").innerText="➕ Nuova Camminata";
   modal.classList.remove("hidden");modal.classList.add("flex");
 }
 function openModalForEdit(h){
@@ -539,7 +621,8 @@ function openModalForEdit(h){
   document.getElementById("add-km").value=h.lunghezza_km??"";
   document.getElementById("add-dislivello").value=h.dislivello_m??"";
   document.getElementById("add-parcheggio").value=h.parcheggio||(h.lat!=null&&h.lng!=null?`${h.lat}, ${h.lng}`:"");
-  document.getElementById("add-link").value=h.link||"";document.getElementById("add-note").value=h.note||"";
+  document.getElementById("add-link").value=h.link||"";document.getElementById("add-gpx-track").value=JSON.stringify(Array.isArray(h.gpx_track)?h.gpx_track:[]);document.getElementById("add-note").value=h.note||"";
+  showGpxSummary(Array.isArray(h.gpx_track)?h.gpx_track:[], h.lunghezza_km, h.dislivello_m);
   document.getElementById("add-passeggino").checked=!!h.passeggino;document.getElementById("add-parco-giochi").checked=!!h.parco_giochi;
   document.getElementById("add-parcheggio-pagamento").checked=!!h.parcheggio_pagamento;document.getElementById("add-fatto").checked=!!h.fatto;document.getElementById("add-preferito").checked=!!h.preferito;
   setComboStagioniValues(h.stagione);document.getElementById("modal-title").innerText="✏️ Modifica Camminata";
@@ -559,7 +642,7 @@ document.getElementById("form-add-hike").addEventListener("submit",async e=>{
     nome:document.getElementById("add-nome").value.trim(),tipo:document.getElementById("add-tipo").value,comune:document.getElementById("add-comune").value.trim(),
     difficolta:document.getElementById("add-difficolta").value,tempo:parseFloat(document.getElementById("add-tempo").value)||0,lunghezza_km:parseFloat(document.getElementById("add-km").value)||0,
     dislivello_m:parseInt(document.getElementById("add-dislivello").value)||0,parcheggio:p,lat:c?c.lat:null,lng:c?c.lng:null,stagione:stagioni,
-    link:document.getElementById("add-link").value.trim(),note:document.getElementById("add-note").value.trim(),passeggino:document.getElementById("add-passeggino").checked,
+    link:document.getElementById("add-link").value.trim(),gpx_track:JSON.parse(document.getElementById("add-gpx-track").value||"[]"),note:document.getElementById("add-note").value.trim(),passeggino:document.getElementById("add-passeggino").checked,
     parco_giochi:document.getElementById("add-parco-giochi").checked,parcheggio_pagamento:document.getElementById("add-parcheggio-pagamento").checked,
     fatto:document.getElementById("add-fatto").checked,preferito:document.getElementById("add-preferito").checked
   };
