@@ -70,7 +70,7 @@
     <div class="border-t pt-3 grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
       <div>
         <div class="flex justify-between items-center mb-1">
-          <label for="distance-slider" class="font-semibold text-gray-700 text-sm">📍 Distanza massima da Bolzano</label>
+          <label for="distance-slider" class="font-semibold text-gray-700 text-sm">📍 Distanza massima da Bolzano (dal Comune)</label>
           <span id="distance-value" class="font-bold text-emerald-700 text-sm">200 km</span>
         </div>
         <input id="distance-slider" type="range" min="5" max="200" step="5" value="200"
@@ -244,8 +244,73 @@ function distanceKm(a,b) {
   return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
 }
 
+/*
+ * La distanza da Bolzano viene calcolata dal CAMPO "comune".
+ * Le coordinate del parcheggio non vengono utilizzate per questo calcolo.
+ * Nominatim/OpenStreetMap viene usato per trasformare il nome del comune
+ * in coordinate. Il risultato viene memorizzato in memoria per evitare
+ * richieste ripetute allo stesso comune durante la sessione.
+ */
+const communeGeoCache = new Map();
+const communeGeoPending = new Map();
+
+function normalizeComune(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+async function geocodeComune(comune) {
+  const key=normalizeComune(comune);
+  if(!key) return null;
+  if(communeGeoCache.has(key)) return communeGeoCache.get(key);
+  if(communeGeoPending.has(key)) return communeGeoPending.get(key);
+
+  const promise=(async()=>{
+    try {
+      const q=encodeURIComponent(`${comune}, Alto Adige, Italia`);
+      const url=`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&featuretype=city&q=${q}`;
+      const res=await fetch(url,{headers:{"Accept":"application/json"}});
+      if(!res.ok) throw new Error("Geocoding error");
+      const data=await res.json();
+
+      // Secondo tentativo più permissivo se il primo non trova il comune.
+      let result=data && data[0] ? data[0] : null;
+      if(!result) {
+        const q2=encodeURIComponent(`${comune}, Italia`);
+        const res2=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&q=${q2}`,{headers:{"Accept":"application/json"}});
+        if(res2.ok) {
+          const data2=await res2.json();
+          result=data2 && data2[0] ? data2[0] : null;
+        }
+      }
+
+      const coords=result ? {lat:Number(result.lat),lng:Number(result.lon)} : null;
+      communeGeoCache.set(key,coords);
+      return coords;
+    } catch(e) {
+      console.warn("Impossibile trovare il comune:",comune,e);
+      communeGeoCache.set(key,null);
+      return null;
+    } finally {
+      communeGeoPending.delete(key);
+    }
+  })();
+
+  communeGeoPending.set(key,promise);
+  return promise;
+}
+
+async function geocodeAllCommunes() {
+  const unique=[...new Set(hikesData.map(h=>String(h.comune||"").trim()).filter(Boolean))];
+  // Nominatim è un servizio pubblico: evitiamo richieste simultanee.
+  for(const comune of unique) {
+    await geocodeComune(comune);
+    await new Promise(resolve=>setTimeout(resolve,350));
+  }
+}
+
 function getDistanceFromBolzano(hike) {
-  const c=getCoords(hike);
+  const comune=normalizeComune(hike.comune);
+  const c=communeGeoCache.get(comune);
   return c ? distanceKm(BOLZANO,c) : null;
 }
 
@@ -264,6 +329,10 @@ onValue(ref(db,"camminate"),snapshot=>{
   } else hikesData=[];
   updateCounts();
   renderCurrentTab();
+
+  // Geocodifica i comuni in background; quando sono disponibili
+  // aggiorna automaticamente filtro, ordinamento e distanza sulle schede.
+  geocodeAllCommunes().then(()=>renderCurrentTab());
 });
 
 function updateCounts() {
@@ -368,7 +437,7 @@ function renderCurrentTab() {
         <p class="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-1.5">
           <span>📍 ${h.comune||"Comune N/D"}</span><span>• ${diff}</span>
         </p>
-        ${dist!==null?`<p class="text-xs font-semibold text-emerald-700 mt-1">🚗 ${dist.toFixed(1)} km da Bolzano</p>`:"<p class=\"text-xs text-gray-400 mt-1\">📍 Distanza da Bolzano non disponibile</p>"}
+        ${dist!==null?`<p class="text-xs font-semibold text-emerald-700 mt-1">🚗 ${dist.toFixed(1)} km da Bolzano</p>`:"<p class=\"text-xs text-gray-400 mt-1\">📍 Distanza dal Comune non disponibile</p>"}
         <div class="flex flex-wrap gap-1 mt-2">${seasons}
           ${h.passeggino?'<span class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">👶 Passeggino</span>':""}
           ${h.parco_giochi?'<span class="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">🛝 Parco Giochi</span>':""}
