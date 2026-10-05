@@ -4,67 +4,57 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Camminate</title>
-  
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-  <!-- Chart.js per i Grafici Statistiche -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
   <style>
     #map { height: 550px; z-index: 1; }
-    .tab-active { @apply bg-emerald-700 text-white font-bold shadow-sm; }
-    .tab-inactive { @apply text-emerald-100 hover:bg-emerald-800/60 hover:text-white; }
+    .tab-active { background:#047857; color:white; font-weight:700; box-shadow:0 1px 3px rgba(0,0,0,.15); }
+    .tab-inactive { color:#d1fae5; }
+    .tab-inactive:hover { background:rgba(6,78,59,.6); color:white; }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col font-sans">
-
-  <!-- Header -->
-  <header class="bg-emerald-900 text-white shadow-lg p-4 sm:p-5">
-    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-      <div>
-        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">🏔️ Dashboard Camminate</h1>
-        <p class="text-emerald-200 text-xs sm:text-sm">Gestione percorsi con Firebase Realtime Database</p>
-      </div>
-
-      <!-- Pulsante Nuova Camminata -->
-      <button id="btn-open-modal" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2 text-sm">
-        ➕ <span>Nuova Camminata</span>
-      </button>
+<header class="bg-emerald-900 text-white shadow-lg p-4 sm:p-5">
+  <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">🏔️ Dashboard Camminate</h1>
+      <p class="text-emerald-200 text-xs sm:text-sm">Gestione percorsi con Firebase Realtime Database</p>
     </div>
+    <button id="btn-open-modal" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2 text-sm">
+      ➕ <span>Nuova Camminata</span>
+    </button>
+  </div>
+  <nav class="max-w-7xl mx-auto mt-5 flex flex-wrap gap-2 border-b border-emerald-800/80 pb-1 text-sm font-medium">
+    <button data-tab="da_fare" class="tab-btn tab-active px-4 py-2 rounded-lg transition">🎯 Da Fare (<span id="count-da-fare">0</span>)</button>
+    <button data-tab="fatte" class="tab-btn tab-inactive px-4 py-2 rounded-lg transition">✅ Fatte (<span id="count-fatte">0</span>)</button>
+    <button data-tab="preferite" class="tab-btn tab-inactive px-4 py-2 rounded-lg transition">⭐ Preferite (<span id="count-preferite">0</span>)</button>
+    <button data-tab="mappa" class="tab-btn tab-inactive px-4 py-2 rounded-lg transition">🗺️ Mappa</button>
+    <button data-tab="stats" class="tab-btn tab-inactive px-4 py-2 rounded-lg transition">📊 Statistiche</button>
+  </nav>
+</header>
 
-    <!-- Barra Tab di Navigazione -->
-    <nav class="max-w-7xl mx-auto mt-5 flex flex-wrap gap-2 border-b border-emerald-800/80 pb-1 text-sm font-medium">
-      <button data-tab="da_fare" class="tab-btn tab-active px-4 py-2 rounded-lg transition">🎯 Da Fare (<span id="count-da-fare">0</span>)</button>
-      <button data-tab="fatte" class="tab-btn tab-inactive px-4 py-2 rounded-lg transition">✅ Fatte (<span id="count-fatte">0</span>)</button>
-      <button data-tab="preferite" class="tab-btn tab-inactive px-4 py-2 rounded-lg transition">⭐ Preferite (<span id="count-preferite">0</span>)</button>
-      <button data-tab="mappa" class="tab-btn tab-inactive px-4 py-2 rounded-lg transition">🗺️ Mappa</button>
-      <button data-tab="stats" class="tab-btn tab-inactive px-4 py-2 rounded-lg transition">📊 Statistiche</button>
-    </nav>
-  </header>
-
-  <!-- Area Contenuto Principale -->
-  <main class="max-w-7xl mx-auto w-full p-4 flex-1">
-
-    <!-- Barra Ricerca e Filtri -->
-    <div id="filter-bar" class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 mb-4 flex flex-wrap gap-3 items-center justify-between">
-      <input type="text" id="search-input" placeholder="🔍 Cerca nome o comune..." 
+<main class="max-w-7xl mx-auto w-full p-4 flex-1">
+  <div id="filter-bar" class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 mb-4 space-y-3">
+    <div class="flex flex-wrap gap-3 items-center justify-between">
+      <input type="text" id="search-input" placeholder="🔍 Cerca nome o comune..."
              class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-60 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-      
       <div class="flex flex-wrap items-center gap-3 text-xs font-medium text-gray-700">
-        <!-- FILTRO DIFFICOLTÀ -->
         <select id="filter-difficolta" class="border border-gray-300 rounded-lg px-2 py-2 bg-white">
           <option value="all">Tutte le Difficoltà</option>
+          <option value="">⚪ Non assegnata</option>
           <option value="⭐">⭐ Facile</option>
           <option value="⭐⭐">⭐⭐ Media</option>
           <option value="⭐⭐⭐">⭐⭐⭐ Impegnativa</option>
           <option value="⭐⭐⭐⭐">⭐⭐⭐⭐ Molto Impegnativa</option>
           <option value="⭐⭐⭐⭐⭐">⭐⭐⭐⭐⭐ Esperti</option>
         </select>
-
+        <select id="filter-tipo" class="border border-gray-300 rounded-lg px-2 py-2 bg-white">
+          <option value="all">Tutti i Tipi</option>
+          <option value="">⚪ Non assegnato</option>
+          <option value="🥾 Camminata">🥾 Camminata</option>
+          <option value="🧗‍♂️ Ferrata">🧗‍♂️ Ferrata</option>
+        </select>
         <select id="filter-stagione" class="border border-gray-300 rounded-lg px-2 py-2 bg-white">
           <option value="all">Tutte le Stagioni</option>
           <option value="🌸 Primavera">🌸 Primavera</option>
@@ -72,756 +62,476 @@
           <option value="🍂 Autunno">🍂 Autunno</option>
           <option value="❄️ Inverno">❄️ Inverno</option>
         </select>
-
-        <label class="flex items-center gap-1 cursor-pointer">
-          <input type="checkbox" id="filter-stroller" class="w-4 h-4 text-emerald-600 rounded">
-          <span>👶 Passeggino</span>
-        </label>
-
-        <label class="flex items-center gap-1 cursor-pointer">
-          <input type="checkbox" id="filter-playground" class="w-4 h-4 text-emerald-600 rounded">
-          <span>🛝 Parco Giochi</span>
-        </label>
+        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="filter-stroller" class="w-4 h-4 text-emerald-600 rounded"><span>👶 Passeggino</span></label>
+        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="filter-playground" class="w-4 h-4 text-emerald-600 rounded"><span>🛝 Parco Giochi</span></label>
       </div>
     </div>
 
-    <!-- VISTA 1: Lista Schede -->
-    <div id="view-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div class="col-span-full text-center py-20 text-gray-400">Caricamento camminate da Firebase...</div>
-    </div>
-
-    <!-- VISTA 2: Mappa Schermo Intero -->
-    <div id="view-map" class="hidden">
-      <div id="map" class="rounded-2xl shadow-md border border-gray-200"></div>
-    </div>
-
-    <!-- VISTA 3: Dashboard Statistiche con GRAFICI -->
-    <div id="view-stats" class="hidden space-y-6">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center">
-          <span class="text-3xl font-extrabold text-emerald-700 block" id="stat-total-count">0</span>
-          <span class="text-xs uppercase text-gray-500 font-semibold">Percorsi Totali</span>
+    <div class="border-t pt-3 grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <label for="distance-slider" class="font-semibold text-gray-700 text-sm">📍 Distanza massima da Bolzano</label>
+          <span id="distance-value" class="font-bold text-emerald-700 text-sm">200 km</span>
         </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center">
-          <span class="text-3xl font-extrabold text-blue-600 block" id="stat-total-km">0</span>
-          <span class="text-xs uppercase text-gray-500 font-semibold">Km Completati</span>
-        </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center">
-          <span class="text-3xl font-extrabold text-amber-600 block" id="stat-total-elevation">0</span>
-          <span class="text-xs uppercase text-gray-500 font-semibold">Dislivello Salito (m)</span>
-        </div>
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center">
-          <span class="text-3xl font-extrabold text-purple-600 block" id="stat-stroller-count">0</span>
-          <span class="text-xs uppercase text-gray-500 font-semibold">Adatte a Passeggini</span>
-        </div>
+        <input id="distance-slider" type="range" min="5" max="200" step="5" value="200"
+               class="w-full accent-emerald-600 cursor-pointer">
+        <div class="flex justify-between text-[10px] text-gray-400"><span>5 km</span><span>100 km</span><span>200 km</span></div>
       </div>
-
-      <!-- Grafici -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
-          <h3 class="font-bold text-gray-800 text-sm mb-4">📊 Stato Camminate (Completate vs Da Fare)</h3>
-          <div class="h-64 flex justify-center items-center relative">
-            <canvas id="chart-stato"></canvas>
-          </div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
-          <h3 class="font-bold text-gray-800 text-sm mb-4">🎯 Distribuzione per Difficoltà</h3>
-          <div class="h-64 flex justify-center items-center relative">
-            <canvas id="chart-difficolta"></canvas>
-          </div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 md:col-span-2">
-          <h3 class="font-bold text-gray-800 text-sm mb-4">🌸 Camminate per Stagione Consigliata</h3>
-          <div class="h-64 relative">
-            <canvas id="chart-stagioni"></canvas>
-          </div>
-        </div>
+      <div class="flex items-center gap-2 justify-start lg:justify-end">
+        <label for="sort-select" class="font-semibold text-gray-700 text-sm whitespace-nowrap">↕ Ordina per:</label>
+        <select id="sort-select" class="border border-gray-300 rounded-lg px-2 py-2 bg-white text-sm">
+          <option value="default">Predefinito</option>
+          <option value="distance-asc">📍 Distanza da Bolzano ↑</option>
+          <option value="distance-desc">📍 Distanza da Bolzano ↓</option>
+          <option value="difficulty-asc">⭐ Difficoltà ↑</option>
+          <option value="difficulty-desc">⭐ Difficoltà ↓</option>
+          <option value="length-asc">📏 Lunghezza ↑</option>
+          <option value="length-desc">📏 Lunghezza ↓</option>
+          <option value="elevation-asc">📈 Dislivello ↑</option>
+          <option value="elevation-desc">📈 Dislivello ↓</option>
+          <option value="time-asc">⏱️ Durata ↑</option>
+          <option value="time-desc">⏱️ Durata ↓</option>
+          <option value="name-asc">🔤 Nome A → Z</option>
+        </select>
       </div>
-    </div>
-
-  </main>
-
-  <!-- MODALE INSERIMENTO / MODIFICA -->
-  <div id="modal-add" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-      <div class="flex justify-between items-center mb-4 border-b pb-2">
-        <h2 id="modal-title" class="text-xl font-bold text-gray-800">➕ Nuova Camminata</h2>
-        <button id="btn-close-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-      </div>
-
-      <form id="form-add-hike" class="space-y-3 text-sm">
-        <input type="hidden" id="edit-id" value="">
-
-        <div>
-          <label class="block font-semibold text-gray-700 mb-1">Nome Camminata *</label>
-          <input type="text" id="add-nome" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500">
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Tipo di percorso</label>
-            <select id="add-tipo" class="w-full border rounded-lg p-2 bg-white">
-              <option value="🥾 Camminata" selected>🥾 Camminata</option>
-              <option value="🧗‍♂️ Ferrata">🧗‍♂️ Ferrata</option>
-            </select>
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Difficoltà</label>
-            <select id="add-difficolta" class="w-full border rounded-lg p-2 bg-white">
-              <option value="⭐">⭐ Facile</option>
-              <option value="⭐⭐" selected>⭐⭐ Media</option>
-              <option value="⭐⭐⭐">⭐⭐⭐ Impegnativa</option>
-              <option value="⭐⭐⭐⭐">⭐⭐⭐⭐ Molto Impegnativa</option>
-              <option value="⭐⭐⭐⭐⭐">⭐⭐⭐⭐⭐ Esperti</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">
-              Comune / Zona 
-              <span id="geo-status" class="text-[10px] text-emerald-600 font-normal"></span>
-            </label>
-            <input type="text" id="add-comune" placeholder="Rilevato in automatico..." class="w-full border rounded-lg p-2 bg-gray-50">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Tempo (ore)</label>
-            <input type="number" step="0.1" id="add-tempo" class="w-full border rounded-lg p-2">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Km</label>
-            <input type="number" step="0.1" id="add-km" class="w-full border rounded-lg p-2">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-700 mb-1">Dislivello (m)</label>
-            <input type="number" id="add-dislivello" class="w-full border rounded-lg p-2">
-          </div>
-        </div>
-
-        <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200">
-          <label class="block font-bold text-emerald-900 mb-1">📍 Coordinate Parcheggio (Latitudine, Longitudine)</label>
-          <input type="text" id="add-parcheggio" placeholder="es. 46.486956, 11.317339" class="w-full border rounded-lg p-2 bg-white text-xs">
-          <p class="text-[10px] text-gray-500 mt-1">Incolla qui le coordinate Google Maps per il navigatore.</p>
-        </div>
-
-        <div class="relative">
-          <label class="block font-semibold text-gray-700 mb-1">Stagione consigliata (Multi-Selezione)</label>
-          <button type="button" id="combo-stagioni-btn" class="w-full border rounded-lg p-2 text-left bg-white flex justify-between items-center text-xs text-gray-700 border-gray-300 focus:ring-2 focus:ring-emerald-500">
-            <span id="combo-stagioni-label" class="truncate font-medium text-gray-500">Seleziona una o più stagioni...</span>
-            <span class="text-gray-400 text-xs ml-2">▼</span>
-          </button>
-          
-          <div id="combo-stagioni-menu" class="hidden absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl p-2 z-30 space-y-1 text-xs">
-            <label class="flex items-center gap-2 p-2 hover:bg-emerald-50 rounded-lg cursor-pointer transition">
-              <input type="checkbox" name="stagioni" value="🌸 Primavera" class="combo-stagione-cb text-emerald-600 rounded">
-              <span class="font-medium text-gray-700">🌸 Primavera</span>
-            </label>
-            <label class="flex items-center gap-2 p-2 hover:bg-emerald-50 rounded-lg cursor-pointer transition">
-              <input type="checkbox" name="stagioni" value="☀️ Estate" class="combo-stagione-cb text-emerald-600 rounded">
-              <span class="font-medium text-gray-700">☀️ Estate</span>
-            </label>
-            <label class="flex items-center gap-2 p-2 hover:bg-emerald-50 rounded-lg cursor-pointer transition">
-              <input type="checkbox" name="stagioni" value="🍂 Autunno" class="combo-stagione-cb text-emerald-600 rounded">
-              <span class="font-medium text-gray-700">🍂 Autunno</span>
-            </label>
-            <label class="flex items-center gap-2 p-2 hover:bg-emerald-50 rounded-lg cursor-pointer transition">
-              <input type="checkbox" name="stagioni" value="❄️ Inverno" class="combo-stagione-cb text-emerald-600 rounded">
-              <span class="font-medium text-gray-700">❄️ Inverno</span>
-            </label>
-          </div>
-        </div>
-
-        <div>
-          <label class="block font-semibold text-gray-700 mb-1">Link Tour (Komoot/Outdooractive/Strava)</label>
-          <input type="url" id="add-link" class="w-full border rounded-lg p-2">
-        </div>
-
-        <div>
-          <label class="block font-semibold text-gray-700 mb-1">Note / Consigli</label>
-          <textarea id="add-note" rows="2" class="w-full border rounded-lg p-2"></textarea>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2 pt-1 text-xs font-medium border-t">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="add-passeggino" class="w-4 h-4 text-emerald-600 rounded">
-            <span>Passeggino 👶</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="add-parco-giochi" class="w-4 h-4 text-emerald-600 rounded">
-            <span>Parco Giochi 🛝</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="add-parcheggio-pagamento" class="w-4 h-4 text-emerald-600 rounded">
-            <span>Parcheggio a pagamento 🅿️💶</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="add-fatto" class="w-4 h-4 text-emerald-600 rounded">
-            <span>Già completata ✅</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="add-preferito" class="w-4 h-4 text-amber-500 rounded">
-            <span>Preferito ⭐</span>
-          </label>
-        </div>
-
-        <div class="flex justify-end gap-3 pt-4 border-t">
-          <button type="button" id="btn-cancel-modal" class="px-4 py-2 border rounded-lg text-gray-600">Annulla</button>
-          <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700">Salva Camminata</button>
-        </div>
-      </form>
     </div>
   </div>
 
-  <!-- JavaScript Leaflet & Firebase Realtime Database -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, onValue, update, remove, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  <div id="view-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="col-span-full text-center py-20 text-gray-400">Caricamento camminate da Firebase...</div>
+  </div>
 
-    // Configurazione Firebase con Realtime Database URL
-    const firebaseConfig = {
-      apiKey: "AIzaSyDmcLYWQMpoB_Ws4S6fQ7i_5oOtmLzHopA",
-      authDomain: "camminate-1f370.firebaseapp.com",
-      databaseURL: "https://camminate-1f370-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "camminate-1f370",
-      storageBucket: "camminate-1f370.firebasestorage.app",
-      messagingSenderId: "179844942262",
-      appId: "1:179844942262:web:105b3982c2059fedea1917"
-    };
+  <div id="view-map" class="hidden"><div id="map" class="rounded-2xl shadow-md border border-gray-200"></div></div>
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+  <div id="view-stats" class="hidden space-y-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center"><span class="text-3xl font-extrabold text-emerald-700 block" id="stat-total-count">0</span><span class="text-xs uppercase text-gray-500 font-semibold">Percorsi Totali</span></div>
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center"><span class="text-3xl font-extrabold text-blue-600 block" id="stat-total-km">0</span><span class="text-xs uppercase text-gray-500 font-semibold">Km Completati</span></div>
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center"><span class="text-3xl font-extrabold text-amber-600 block" id="stat-total-elevation">0</span><span class="text-xs uppercase text-gray-500 font-semibold">Dislivello Salito (m)</span></div>
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 text-center"><span class="text-3xl font-extrabold text-purple-600 block" id="stat-stroller-count">0</span><span class="text-xs uppercase text-gray-500 font-semibold">Adatte a Passeggini</span></div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200"><h3 class="font-bold text-gray-800 text-sm mb-4">📊 Stato Camminate</h3><div class="h-64 relative"><canvas id="chart-stato"></canvas></div></div>
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200"><h3 class="font-bold text-gray-800 text-sm mb-4">🎯 Distribuzione per Difficoltà</h3><div class="h-64 relative"><canvas id="chart-difficolta"></canvas></div></div>
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 md:col-span-2"><h3 class="font-bold text-gray-800 text-sm mb-4">🌸 Camminate per Stagione Consigliata</h3><div class="h-64 relative"><canvas id="chart-stagioni"></canvas></div></div>
+    </div>
+  </div>
+</main>
 
-    let map = null;
-    let activeMarkers = [];
+<!-- MODALE INSERIMENTO / MODIFICA -->
+<div id="modal-add" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+    <div class="flex justify-between items-center mb-4 border-b pb-2">
+      <h2 id="modal-title" class="text-xl font-bold text-gray-800">➕ Nuova Camminata</h2>
+      <button id="btn-close-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+    </div>
+    <form id="form-add-hike" class="space-y-3 text-sm">
+      <input type="hidden" id="edit-id" value="">
+      <div><label class="block font-semibold text-gray-700 mb-1">Nome Camminata *</label><input type="text" id="add-nome" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block font-semibold text-gray-700 mb-1">Tipo di percorso</label>
+          <select id="add-tipo" class="w-full border rounded-lg p-2 bg-white">
+            <option value="">⚪ Da assegnare</option><option value="🥾 Camminata">🥾 Camminata</option><option value="🧗‍♂️ Ferrata">🧗‍♂️ Ferrata</option>
+          </select>
+        </div>
+        <div><label class="block font-semibold text-gray-700 mb-1">Difficoltà</label>
+          <select id="add-difficolta" class="w-full border rounded-lg p-2 bg-white">
+            <option value="">⚪ Da assegnare</option><option value="⭐">⭐ Facile</option><option value="⭐⭐">⭐⭐ Media</option><option value="⭐⭐⭐">⭐⭐⭐ Impegnativa</option><option value="⭐⭐⭐⭐">⭐⭐⭐⭐ Molto Impegnativa</option><option value="⭐⭐⭐⭐⭐">⭐⭐⭐⭐⭐ Esperti</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block font-semibold text-gray-700 mb-1">Comune / Zona <span id="geo-status" class="text-[10px] text-emerald-600 font-normal"></span></label><input type="text" id="add-comune" placeholder="Rilevato in automatico..." class="w-full border rounded-lg p-2 bg-gray-50"></div>
+        <div><label class="block font-semibold text-gray-700 mb-1">Tempo (ore)</label><input type="number" step="0.1" id="add-tempo" class="w-full border rounded-lg p-2"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="block font-semibold text-gray-700 mb-1">Km</label><input type="number" step="0.1" id="add-km" class="w-full border rounded-lg p-2"></div>
+        <div><label class="block font-semibold text-gray-700 mb-1">Dislivello (m)</label><input type="number" id="add-dislivello" class="w-full border rounded-lg p-2"></div>
+      </div>
+      <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200">
+        <label class="block font-bold text-emerald-900 mb-1">📍 Coordinate Parcheggio (Latitudine, Longitudine)</label>
+        <input type="text" id="add-parcheggio" placeholder="es. 46.486956, 11.317339" class="w-full border rounded-lg p-2 bg-white text-xs">
+        <p class="text-[10px] text-gray-500 mt-1">Incolla qui le coordinate Google Maps per il navigatore.</p>
+      </div>
+      <div class="relative">
+        <label class="block font-semibold text-gray-700 mb-1">Stagione consigliata (Multi-Selezione)</label>
+        <button type="button" id="combo-stagioni-btn" class="w-full border rounded-lg p-2 text-left bg-white flex justify-between items-center text-xs text-gray-700 border-gray-300"><span id="combo-stagioni-label" class="truncate font-medium text-gray-500">Seleziona una o più stagioni...</span><span>▼</span></button>
+        <div id="combo-stagioni-menu" class="hidden absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl p-2 z-30 space-y-1 text-xs">
+          <label class="flex items-center gap-2 p-2 hover:bg-emerald-50 rounded-lg cursor-pointer"><input type="checkbox" value="🌸 Primavera" class="combo-stagione-cb"><span>🌸 Primavera</span></label>
+          <label class="flex items-center gap-2 p-2 hover:bg-emerald-50 rounded-lg cursor-pointer"><input type="checkbox" value="☀️ Estate" class="combo-stagione-cb"><span>☀️ Estate</span></label>
+          <label class="flex items-center gap-2 p-2 hover:bg-emerald-50 rounded-lg cursor-pointer"><input type="checkbox" value="🍂 Autunno" class="combo-stagione-cb"><span>🍂 Autunno</span></label>
+          <label class="flex items-center gap-2 p-2 hover:bg-emerald-50 rounded-lg cursor-pointer"><input type="checkbox" value="❄️ Inverno" class="combo-stagione-cb"><span>❄️ Inverno</span></label>
+        </div>
+      </div>
+      <div><label class="block font-semibold text-gray-700 mb-1">Link Tour (Komoot/Outdooractive/Strava)</label><input type="url" id="add-link" class="w-full border rounded-lg p-2"></div>
+      <div><label class="block font-semibold text-gray-700 mb-1">Note / Consigli</label><textarea id="add-note" rows="2" class="w-full border rounded-lg p-2"></textarea></div>
+      <div class="grid grid-cols-2 gap-2 pt-1 text-xs font-medium border-t">
+        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="add-passeggino" class="w-4 h-4 text-emerald-600 rounded"><span>Passeggino 👶</span></label>
+        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="add-parco-giochi" class="w-4 h-4 text-emerald-600 rounded"><span>Parco Giochi 🛝</span></label>
+        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="add-parcheggio-pagamento" class="w-4 h-4 text-emerald-600 rounded"><span>Parcheggio a pagamento 🅿️💶</span></label>
+        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="add-fatto" class="w-4 h-4 text-emerald-600 rounded"><span>Già completata ✅</span></label>
+        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="add-preferito" class="w-4 h-4 text-amber-500 rounded"><span>Preferito ⭐</span></label>
+      </div>
+      <div class="flex justify-end gap-3 pt-4 border-t"><button type="button" id="btn-cancel-modal" class="px-4 py-2 border rounded-lg text-gray-600">Annulla</button><button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700">Salva Camminata</button></div>
+    </form>
+  </div>
+</div>
 
-    function initMap() {
-      if (!map) {
-        map = L.map('map').setView([46.62, 11.45], 9);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; OpenStreetMap &copy; CARTO',
-          subdomains: 'abcd',
-          maxZoom: 19
-        }).addTo(map);
-      }
+<!-- MODALE COMPLETAMENTO -->
+<div id="modal-complete" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-[60]">
+  <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+    <h2 class="text-xl font-bold text-gray-800">🎉 Camminata completata!</h2>
+    <p id="complete-hike-name" class="text-sm text-gray-600 mt-1 mb-4"></p>
+    <p class="text-sm font-semibold text-gray-700 mb-2">Assegna la difficoltà in base alla tua esperienza:</p>
+    <select id="complete-difficolta" class="w-full border rounded-lg p-2 bg-white mb-4">
+      <option value="">⚪ Lascia non assegnata</option><option value="⭐">⭐ Facile</option><option value="⭐⭐">⭐⭐ Media</option><option value="⭐⭐⭐">⭐⭐⭐ Impegnativa</option><option value="⭐⭐⭐⭐">⭐⭐⭐⭐ Molto Impegnativa</option><option value="⭐⭐⭐⭐⭐">⭐⭐⭐⭐⭐ Esperti</option>
+    </select>
+    <p class="text-sm font-semibold text-gray-700 mb-2">Assegna il tipo di percorso:</p>
+    <select id="complete-tipo" class="w-full border rounded-lg p-2 bg-white mb-5">
+      <option value="">⚪ Lascia non assegnato</option><option value="🥾 Camminata">🥾 Camminata</option><option value="🧗‍♂️ Ferrata">🧗‍♂️ Ferrata</option>
+    </select>
+    <div class="flex justify-end gap-3"><button id="complete-cancel" class="px-4 py-2 border rounded-lg text-gray-600">Annulla</button><button id="complete-save" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold">Salva e completa</button></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, onValue, update, remove, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDmcLYWQMpoB_Ws4S6fQ7i_5oOtmLzHopA",
+  authDomain: "camminate-1f370.firebaseapp.com",
+  databaseURL: "https://camminate-1f370-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "camminate-1f370",
+  storageBucket: "camminate-1f370.firebasestorage.app",
+  messagingSenderId: "179844942262",
+  appId: "1:179844942262:web:105b3982c2059fedea1917"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const BOLZANO = { lat: 46.4983, lng: 11.3548 };
+let hikesData = [], currentTab = "da_fare", map = null, activeMarkers = [];
+let chartStatoInstance = null, chartDiffInstance = null, chartStagioniInstance = null;
+let completionHikeId = null;
+
+function parseCoordinates(str) {
+  if (!str) return null;
+  const m = String(str).match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+  if (m) return {lat:parseFloat(m[1]),lng:parseFloat(m[2])};
+  const a = String(str).match(/(\d+)°(\d+)'([\d.]+)"?\s*([NS])/i);
+  const b = String(str).match(/(\d+)°(\d+)'([\d.]+)"?\s*([EW])/i);
+  if (a && b) {
+    let lat=parseInt(a[1])+parseInt(a[2])/60+parseFloat(a[3])/3600;
+    let lng=parseInt(b[1])+parseInt(b[2])/60+parseFloat(b[3])/3600;
+    if(a[4].toUpperCase()==="S")lat=-lat;
+    if(b[4].toUpperCase()==="W")lng=-lng;
+    return {lat,lng};
+  }
+  return null;
+}
+
+function getCoords(hike) {
+  return parseCoordinates(hike.parcheggio || "") ||
+    (hike.lat != null && hike.lng != null ? {lat:Number(hike.lat),lng:Number(hike.lng)} : null);
+}
+
+function distanceKm(a,b) {
+  const R=6371, p=Math.PI/180;
+  const dLat=(b.lat-a.lat)*p, dLon=(b.lng-a.lng)*p;
+  const x=Math.sin(dLat/2)**2 + Math.cos(a.lat*p)*Math.cos(b.lat*p)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+function getDistanceFromBolzano(hike) {
+  const c=getCoords(hike);
+  return c ? distanceKm(BOLZANO,c) : null;
+}
+
+function initMap() {
+  if (!map) {
+    map=L.map("map").setView([46.62,11.45],9);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{attribution:"&copy; OpenStreetMap &copy; CARTO",subdomains:"abcd",maxZoom:19}).addTo(map);
+  }
+}
+
+onValue(ref(db,"camminate"),snapshot=>{
+  const data=snapshot.val();
+  if(data) {
+    if(Array.isArray(data)) hikesData=data.map((item,idx)=>({id:String(idx),...item})).filter(h=>h.nome);
+    else hikesData=Object.keys(data).map(key=>({id:key,...data[key]}));
+  } else hikesData=[];
+  updateCounts();
+  renderCurrentTab();
+});
+
+function updateCounts() {
+  document.getElementById("count-da-fare").innerText=hikesData.filter(h=>!h.fatto).length;
+  document.getElementById("count-fatte").innerText=hikesData.filter(h=>h.fatto).length;
+  document.getElementById("count-preferite").innerText=hikesData.filter(h=>h.preferito).length;
+  let km=0, elev=0, stroller=0;
+  hikesData.forEach(h=>{if(h.fatto){km+=Number(h.lunghezza_km)||0;elev+=Number(h.dislivello_m)||0;}if(h.passeggino)stroller++;});
+  document.getElementById("stat-total-count").innerText=hikesData.length;
+  document.getElementById("stat-total-km").innerText=km.toFixed(1);
+  document.getElementById("stat-total-elevation").innerText=elev.toLocaleString();
+  document.getElementById("stat-stroller-count").innerText=stroller;
+  renderCharts();
+}
+
+function renderCharts() {
+  if(typeof Chart==="undefined")return;
+  const f=hikesData.filter(x=>x.fatto).length, d=hikesData.length-f;
+  const s=document.getElementById("chart-stato");
+  if(s){if(chartStatoInstance)chartStatoInstance.destroy();chartStatoInstance=new Chart(s,{type:"doughnut",data:{labels:["Completate ✅","Da Fare 🎯"],datasets:[{data:[f,d],backgroundColor:["#10b981","#f59e0b"]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}}}});}
+  const dc={"⭐":0,"⭐⭐":0,"⭐⭐⭐":0,"⭐⭐⭐⭐":0,"⭐⭐⭐⭐⭐":0};
+  hikesData.forEach(h=>{if(dc[h.difficolta]!==undefined)dc[h.difficolta]++;});
+  const cd=document.getElementById("chart-difficolta");
+  if(cd){if(chartDiffInstance)chartDiffInstance.destroy();chartDiffInstance=new Chart(cd,{type:"pie",data:{labels:["Facile ⭐","Media ⭐⭐","Impegnativa ⭐⭐⭐","Molto Imp. ⭐⭐⭐⭐","Esperti ⭐⭐⭐⭐⭐"],datasets:[{data:Object.values(dc),backgroundColor:["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}}}});}
+  const sc={"🌸 Primavera":0,"☀️ Estate":0,"🍂 Autunno":0,"❄️ Inverno":0};
+  hikesData.forEach(h=>(Array.isArray(h.stagione)?h.stagione:[h.stagione||""]).forEach(x=>{Object.keys(sc).forEach(k=>{if(x.includes(k.split(" ")[1]))sc[k]++;});}));
+  const cs=document.getElementById("chart-stagioni");
+  if(cs){if(chartStagioniInstance)chartStagioniInstance.destroy();chartStagioniInstance=new Chart(cs,{type:"bar",data:{labels:Object.keys(sc),datasets:[{label:"Numero Camminate",data:Object.values(sc),backgroundColor:["#f472b6","#fbbf24","#f97316","#38bdf8"]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});}
+}
+
+function difficultyValue(v){return v ? v.length : 0;}
+
+function renderCurrentTab() {
+  const cards=document.getElementById("view-cards"), mapView=document.getElementById("view-map"), stats=document.getElementById("view-stats"), bar=document.getElementById("filter-bar");
+  cards.classList.add("hidden");mapView.classList.add("hidden");stats.classList.add("hidden");bar.classList.add("hidden");
+  if(currentTab==="stats"){stats.classList.remove("hidden");renderCharts();return;}
+  if(currentTab==="mappa"){mapView.classList.remove("hidden");initMap();setTimeout(()=>map.invalidateSize(),200);renderMapMarkers(hikesData);return;}
+  bar.classList.remove("hidden");cards.classList.remove("hidden");
+
+  const search=document.getElementById("search-input").value.toLowerCase();
+  const df=document.getElementById("filter-difficolta").value;
+  const tf=document.getElementById("filter-tipo").value;
+  const sf=document.getElementById("filter-stagione").value;
+  const stroller=document.getElementById("filter-stroller").checked;
+  const playground=document.getElementById("filter-playground").checked;
+  const maxDistance=Number(document.getElementById("distance-slider").value);
+  const sort=document.getElementById("sort-select").value;
+
+  let filtered=hikesData.filter(h=>{
+    if(currentTab==="da_fare"&&h.fatto)return false;
+    if(currentTab==="fatte"&&!h.fatto)return false;
+    if(currentTab==="preferite"&&!h.preferito)return false;
+    if(df!=="all"&&(h.difficolta||"")!==df)return false;
+    if(tf!=="all"&&(h.tipo||"")!==tf)return false;
+    const seasons=Array.isArray(h.stagione)?h.stagione:[h.stagione||""];
+    if(sf!=="all"&&!seasons.includes(sf))return false;
+    if(stroller&&!h.passeggino)return false;
+    if(playground&&!h.parco_giochi)return false;
+    if(search&&!(h.nome||"").toLowerCase().includes(search)&&!(h.comune||"").toLowerCase().includes(search))return false;
+    const dist=getDistanceFromBolzano(h);
+    if(dist!==null&&dist>maxDistance)return false;
+    return true;
+  });
+
+  filtered.sort((a,b)=>{
+    const da=getDistanceFromBolzano(a), db=getDistanceFromBolzano(b);
+    const n=(x)=>Number(x)||0;
+    switch(sort){
+      case "distance-asc": return (da??Infinity)-(db??Infinity);
+      case "distance-desc": return (db??-1)-(da??-1);
+      case "difficulty-asc": return difficultyValue(a.difficolta)-difficultyValue(b.difficolta);
+      case "difficulty-desc": return difficultyValue(b.difficolta)-difficultyValue(a.difficolta);
+      case "length-asc": return n(a.lunghezza_km)-n(b.lunghezza_km);
+      case "length-desc": return n(b.lunghezza_km)-n(a.lunghezza_km);
+      case "elevation-asc": return n(a.dislivello_m)-n(b.dislivello_m);
+      case "elevation-desc": return n(b.dislivello_m)-n(a.dislivello_m);
+      case "time-asc": return n(a.tempo)-n(b.tempo);
+      case "time-desc": return n(b.tempo)-n(a.tempo);
+      case "name-asc": return (a.nome||"").localeCompare(b.nome||"","it");
+      default:return 0;
     }
+  });
 
-    let hikesData = [];
-    let currentTab = 'da_fare';
+  cards.innerHTML="";
+  if(!filtered.length){cards.innerHTML='<div class="col-span-full text-center py-16 text-gray-400">Nessuna camminata trovata.</div>';return;}
 
-    // Istanza Grafici
-    let chartStatoInstance = null;
-    let chartDiffInstance = null;
-    let chartStagioniInstance = null;
+  filtered.forEach(h=>{
+    const card=document.createElement("div");
+    card.className=`p-4 rounded-2xl border transition-all bg-white border-gray-200 shadow-sm hover:shadow-md flex flex-col justify-between ${h.fatto?"border-l-4 border-l-emerald-500":"border-l-4 border-l-amber-400"}`;
+    const coords=getCoords(h), navUrl=coords?`https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`:null;
+    const dist=getDistanceFromBolzano(h);
+    const seasons=(Array.isArray(h.stagione)?h.stagione:[h.stagione||""]).filter(Boolean).map(x=>`<span class="bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-medium">${x.split(" ")[0]}</span>`).join(" ");
+    const diff=h.difficolta||"⚪ Da assegnare";
+    const tipo=h.tipo||"⚪ Da assegnare";
+    card.innerHTML=`
+      <div>
+        <div class="flex justify-between items-start gap-2">
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded ${h.tipo==="🧗‍♂️ Ferrata"?"bg-red-100 text-red-800":"bg-emerald-100 text-emerald-800"}">${tipo}</span>
+          <button data-id="${h.id}" data-fav="${!h.preferito}" class="btn-toggle-fav text-lg transition hover:scale-125">${h.preferito?"⭐":"🖤"}</button>
+        </div>
+        <h3 class="font-bold text-gray-900 text-base leading-snug mt-1">${h.nome}</h3>
+        <p class="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-1.5">
+          <span>📍 ${h.comune||"Comune N/D"}</span><span>• ${diff}</span>
+        </p>
+        ${dist!==null?`<p class="text-xs font-semibold text-emerald-700 mt-1">🚗 ${dist.toFixed(1)} km da Bolzano</p>`:"<p class=\"text-xs text-gray-400 mt-1\">📍 Distanza da Bolzano non disponibile</p>"}
+        <div class="flex flex-wrap gap-1 mt-2">${seasons}
+          ${h.passeggino?'<span class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">👶 Passeggino</span>':""}
+          ${h.parco_giochi?'<span class="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">🛝 Parco Giochi</span>':""}
+          ${h.parcheggio_pagamento?'<span class="bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">🅿️💶 Pagamento</span>':'<span class="bg-green-50 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">🅿️ Gratuito</span>'}
+        </div>
+        <div class="grid grid-cols-3 gap-2 mt-3 pt-2 border-t border-gray-100 text-xs font-semibold text-gray-700">
+          <div>⏱️ <span class="font-normal">${h.tempo||0}h</span></div><div>📏 <span class="font-normal">${h.lunghezza_km||0} km</span></div><div>📈 <span class="font-normal">${h.dislivello_m||0} m</span></div>
+        </div>
+        ${h.note?`<p class="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded-lg italic">"${h.note}"</p>`:""}
+      </div>
+      <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2">
+          <button data-id="${h.id}" class="btn-toggle-fatto font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1 text-xs ${h.fatto?"bg-emerald-100 text-emerald-800 hover:bg-emerald-200":"bg-gray-100 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700"}">
+            ${h.fatto?(h.difficolta?"✅ Completata":"⚠️ Assegna difficoltà"):"✅ Completa"}
+          </button>
+          ${navUrl?`<a href="${navUrl}" target="_blank" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold px-2.5 py-1.5 rounded-lg">🚗 Naviga</a>`:""}
+        </div>
+        <div class="flex items-center gap-2">
+          ${h.link?`<a href="${h.link}" target="_blank" class="text-blue-600 font-bold hover:underline">Link ↗</a>`:""}
+          <button data-id="${h.id}" class="btn-edit text-gray-500 hover:text-emerald-600 font-semibold px-2 py-1 bg-gray-100 rounded-lg">✏️</button>
+          <button data-id="${h.id}" class="btn-delete text-gray-400 hover:text-red-600 p-1">🗑️</button>
+        </div>
+      </div>`;
+    cards.appendChild(card);
+  });
 
-    // Lettura Dati in Tempo Reale da Realtime Database
-    const camminateRef = ref(db, 'camminate');
-    onValue(camminateRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        if (Array.isArray(data)) {
-          hikesData = data.map((item, idx) => ({ id: String(idx), ...item })).filter(h => h.nome);
-        } else {
-          hikesData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-        }
-      } else {
-        hikesData = [];
-      }
-      updateCounts();
-      renderCurrentTab();
-    });
+  document.querySelectorAll(".btn-toggle-fatto").forEach(b=>b.addEventListener("click",e=>{
+    e.stopPropagation();
+    const h=hikesData.find(x=>x.id===e.currentTarget.dataset.id);
+    if(!h)return;
+    if(h.fatto && h.difficolta){update(ref(db,`camminate/${h.id}`),{fatto:false});}
+    else openCompletionModal(h);
+  }));
+  document.querySelectorAll(".btn-toggle-fav").forEach(b=>b.addEventListener("click",async e=>{
+    e.stopPropagation();const id=e.currentTarget.dataset.id;
+    await update(ref(db,`camminate/${id}`),{preferito:e.currentTarget.dataset.fav==="true"});
+  }));
+  document.querySelectorAll(".btn-edit").forEach(b=>b.addEventListener("click",e=>{
+    const h=hikesData.find(x=>x.id===e.currentTarget.dataset.id);if(h)openModalForEdit(h);
+  }));
+  document.querySelectorAll(".btn-delete").forEach(b=>b.addEventListener("click",async e=>{
+    if(confirm("Vuoi davvero eliminare questa camminata?"))await remove(ref(db,`camminate/${e.currentTarget.dataset.id}`));
+  }));
+}
 
-    function updateCounts() {
-      const daFare = hikesData.filter(h => !h.fatto).length;
-      const fatte = hikesData.filter(h => h.fatto).length;
-      const preferite = hikesData.filter(h => h.preferito).length;
+function renderMapMarkers(data){
+  if(!map)return;
+  activeMarkers.forEach(m=>map.removeLayer(m));activeMarkers=[];
+  data.forEach(h=>{
+    const c=getCoords(h);if(!c)return;
+    const url=`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`;
+    const d=getDistanceFromBolzano(h);
+    const m=L.marker([c.lat,c.lng]).bindPopup(`<b>${h.nome}</b><br><span>📍 ${h.comune||""}</span><br><span>⏱️ ${h.tempo||0}h | 📏 ${h.lunghezza_km||0} km</span>${d!==null?`<br><span>🚗 ${d.toFixed(1)} km da Bolzano</span>`:""}<br><a href="${url}" target="_blank">🚗 Indicazioni Parcheggio</a>`).addTo(map);
+    activeMarkers.push(m);
+  });
+}
 
-      document.getElementById('count-da-fare').innerText = daFare;
-      document.getElementById('count-fatte').innerText = fatte;
-      document.getElementById('count-preferite').innerText = preferite;
-
-      let kmFatti = 0, dislivelloFatto = 0, passeggini = 0;
-      hikesData.forEach(h => {
-        if (h.fatto) {
-          kmFatti += parseFloat(h.lunghezza_km) || 0;
-          dislivelloFatto += parseInt(h.dislivello_m) || 0;
-        }
-        if (h.passeggino) passeggini++;
-      });
-
-      document.getElementById('stat-total-count').innerText = hikesData.length;
-      document.getElementById('stat-total-km').innerText = kmFatti.toFixed(1);
-      document.getElementById('stat-total-elevation').innerText = dislivelloFatto.toLocaleString();
-      document.getElementById('stat-stroller-count').innerText = passeggini;
-
-      renderCharts();
+async function fetchComuneFromCoordsStr(str){
+  const c=parseCoordinates(str);if(!c)return;
+  const s=document.getElementById("geo-status");s.innerText="(Ricerca comune...)";
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${c.lat}&lon=${c.lng}`);
+    const data=await res.json();
+    if(data?.address){
+      document.getElementById("add-comune").value=data.address.village||data.address.town||data.address.city||data.address.municipality||data.address.county||"";
+      s.innerText="✓ Trovato";
     }
+  }catch(e){s.innerText="";}
+}
 
-    function renderCharts() {
-      if (typeof Chart === 'undefined') return;
+const modal=document.getElementById("modal-add");
+const comboBtn=document.getElementById("combo-stagioni-btn"), comboMenu=document.getElementById("combo-stagioni-menu"), comboLabel=document.getElementById("combo-stagioni-label");
+comboBtn.onclick=e=>{e.stopPropagation();comboMenu.classList.toggle("hidden");};
+document.addEventListener("click",e=>{if(!comboMenu.contains(e.target)&&!comboBtn.contains(e.target))comboMenu.classList.add("hidden");});
+function updateComboLabel(){
+  const a=[...document.querySelectorAll(".combo-stagione-cb:checked")].map(x=>x.value);
+  comboLabel.innerText=a.length?a.join(", "):"Seleziona una o più stagioni...";
+  comboLabel.classList.toggle("text-gray-500",!a.length);
+  comboLabel.classList.toggle("text-emerald-800",!!a.length);
+}
+document.querySelectorAll(".combo-stagione-cb").forEach(x=>x.addEventListener("change",updateComboLabel));
+function setComboStagioniValues(v){
+  const a=Array.isArray(v)?v:[v||""];
+  document.querySelectorAll(".combo-stagione-cb").forEach(x=>x.checked=a.includes(x.value));updateComboLabel();
+}
 
-      // 1. Chart Stato (Fatte vs Da Fare)
-      const fatteCount = hikesData.filter(h => h.fatto).length;
-      const daFareCount = hikesData.length - fatteCount;
+function openModalForAdd(){
+  document.getElementById("form-add-hike").reset();document.getElementById("edit-id").value="";
+  setComboStagioniValues([]);document.getElementById("modal-title").innerText="➕ Nuova Camminata";
+  modal.classList.remove("hidden");modal.classList.add("flex");
+}
+function openModalForEdit(h){
+  document.getElementById("edit-id").value=h.id;
+  document.getElementById("add-nome").value=h.nome||"";
+  document.getElementById("add-tipo").value=h.tipo||"";
+  document.getElementById("add-comune").value=h.comune||"";
+  document.getElementById("add-difficolta").value=h.difficolta||"";
+  document.getElementById("add-tempo").value=h.tempo??"";
+  document.getElementById("add-km").value=h.lunghezza_km??"";
+  document.getElementById("add-dislivello").value=h.dislivello_m??"";
+  document.getElementById("add-parcheggio").value=h.parcheggio||(h.lat!=null&&h.lng!=null?`${h.lat}, ${h.lng}`:"");
+  document.getElementById("add-link").value=h.link||"";document.getElementById("add-note").value=h.note||"";
+  document.getElementById("add-passeggino").checked=!!h.passeggino;document.getElementById("add-parco-giochi").checked=!!h.parco_giochi;
+  document.getElementById("add-parcheggio-pagamento").checked=!!h.parcheggio_pagamento;document.getElementById("add-fatto").checked=!!h.fatto;document.getElementById("add-preferito").checked=!!h.preferito;
+  setComboStagioniValues(h.stagione);document.getElementById("modal-title").innerText="✏️ Modifica Camminata";
+  modal.classList.remove("hidden");modal.classList.add("flex");
+}
 
-      const ctxStato = document.getElementById('chart-stato');
-      if (ctxStato) {
-        if (chartStatoInstance) chartStatoInstance.destroy();
-        chartStatoInstance = new Chart(ctxStato, {
-          type: 'doughnut',
-          data: {
-            labels: ['Completate ✅', 'Da Fare 🎯'],
-            datasets: [{
-              data: [fatteCount, daFareCount],
-              backgroundColor: ['#10b981', '#f59e0b']
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } }
-          }
-        });
-      }
+document.getElementById("btn-open-modal").onclick=openModalForAdd;
+document.getElementById("btn-close-modal").onclick=()=>modal.classList.add("hidden");
+document.getElementById("btn-cancel-modal").onclick=()=>modal.classList.add("hidden");
+document.getElementById("add-parcheggio").addEventListener("change",e=>fetchComuneFromCoordsStr(e.target.value));
 
-      // 2. Chart Difficoltà
-      const diffCounts = { '⭐': 0, '⭐⭐': 0, '⭐⭐⭐': 0, '⭐⭐⭐⭐': 0, '⭐⭐⭐⭐⭐': 0 };
-      hikesData.forEach(h => {
-        if (h.difficolta && diffCounts[h.difficolta] !== undefined) {
-          diffCounts[h.difficolta]++;
-        }
-      });
+document.getElementById("form-add-hike").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const editId=document.getElementById("edit-id").value, p=document.getElementById("add-parcheggio").value.trim(), c=parseCoordinates(p);
+  const stagioni=[...document.querySelectorAll(".combo-stagione-cb:checked")].map(x=>x.value);
+  const payload={
+    nome:document.getElementById("add-nome").value.trim(),tipo:document.getElementById("add-tipo").value,comune:document.getElementById("add-comune").value.trim(),
+    difficolta:document.getElementById("add-difficolta").value,tempo:parseFloat(document.getElementById("add-tempo").value)||0,lunghezza_km:parseFloat(document.getElementById("add-km").value)||0,
+    dislivello_m:parseInt(document.getElementById("add-dislivello").value)||0,parcheggio:p,lat:c?c.lat:null,lng:c?c.lng:null,stagione:stagioni,
+    link:document.getElementById("add-link").value.trim(),note:document.getElementById("add-note").value.trim(),passeggino:document.getElementById("add-passeggino").checked,
+    parco_giochi:document.getElementById("add-parco-giochi").checked,parcheggio_pagamento:document.getElementById("add-parcheggio-pagamento").checked,
+    fatto:document.getElementById("add-fatto").checked,preferito:document.getElementById("add-preferito").checked
+  };
+  if(editId)await update(ref(db,`camminate/${editId}`),payload);else await push(ref(db,"camminate"),payload);
+  modal.classList.add("hidden");
+});
 
-      const ctxDiff = document.getElementById('chart-difficolta');
-      if (ctxDiff) {
-        if (chartDiffInstance) chartDiffInstance.destroy();
-        chartDiffInstance = new Chart(ctxDiff, {
-          type: 'pie',
-          data: {
-            labels: ['Facile ⭐', 'Media ⭐⭐', 'Impegnativa ⭐⭐⭐', 'Molto Imp. ⭐⭐⭐⭐', 'Esperti ⭐⭐⭐⭐⭐'],
-            datasets: [{
-              data: Object.values(diffCounts),
-              backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } }
-          }
-        });
-      }
+function openCompletionModal(h){
+  completionHikeId=h.id;
+  document.getElementById("complete-hike-name").innerText=h.nome;
+  document.getElementById("complete-difficolta").value=h.difficolta||"";
+  document.getElementById("complete-tipo").value=h.tipo||"";
+  document.getElementById("modal-complete").classList.remove("hidden");
+  document.getElementById("modal-complete").classList.add("flex");
+}
+function closeCompletionModal(){document.getElementById("modal-complete").classList.add("hidden");completionHikeId=null;}
+document.getElementById("complete-cancel").onclick=closeCompletionModal;
+document.getElementById("complete-save").onclick=async()=>{
+  if(!completionHikeId)return;
+  await update(ref(db,`camminate/${completionHikeId}`),{
+    fatto:true,
+    difficolta:document.getElementById("complete-difficolta").value,
+    tipo:document.getElementById("complete-tipo").value
+  });
+  closeCompletionModal();
+};
 
-      // 3. Chart Stagioni
-      const stagioniCounts = { '🌸 Primavera': 0, '☀️ Estate': 0, '🍂 Autunno': 0, '❄️ Inverno': 0 };
-      hikesData.forEach(h => {
-        const list = Array.isArray(h.stagione) ? h.stagione : [h.stagione || ''];
-        list.forEach(s => {
-          if (s.includes('Primavera')) stagioniCounts['🌸 Primavera']++;
-          if (s.includes('Estate')) stagioniCounts['☀️ Estate']++;
-          if (s.includes('Autunno')) stagioniCounts['🍂 Autunno']++;
-          if (s.includes('Inverno')) stagioniCounts['❄️ Inverno']++;
-        });
-      });
+document.querySelectorAll(".tab-btn").forEach(btn=>btn.addEventListener("click",e=>{
+  document.querySelectorAll(".tab-btn").forEach(b=>{b.classList.remove("tab-active");b.classList.add("tab-inactive");});
+  e.currentTarget.classList.remove("tab-inactive");e.currentTarget.classList.add("tab-active");currentTab=e.currentTarget.dataset.tab;renderCurrentTab();
+}));
 
-      const ctxStagioni = document.getElementById('chart-stagioni');
-      if (ctxStagioni) {
-        if (chartStagioniInstance) chartStagioniInstance.destroy();
-        chartStagioniInstance = new Chart(ctxStagioni, {
-          type: 'bar',
-          data: {
-            labels: Object.keys(stagioniCounts),
-            datasets: [{
-              label: 'Numero Camminate',
-              data: Object.values(stagioniCounts),
-              backgroundColor: ['#f472b6', '#fbbf24', '#f97316', '#38bdf8']
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-          }
-        });
-      }
-    }
-
-    function parseCoordinates(str) {
-      if (!str) return null;
-      const decMatch = String(str).match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
-      if (decMatch) {
-        return { lat: parseFloat(decMatch[1]), lng: parseFloat(decMatch[2]) };
-      }
-      const dmsLat = String(str).match(/(\d+)°(\d+)'([\d.]+)"?\s*([NS])/i);
-      const dmsLng = String(str).match(/(\d+)°(\d+)'([\d.]+)"?\s*([EW])/i);
-      if (dmsLat && dmsLng) {
-        let lat = parseInt(dmsLat[1]) + parseInt(dmsLat[2])/60 + parseFloat(dmsLat[3])/3600;
-        if (dmsLat[4].toUpperCase() === "S") lat = -lat;
-        let lng = parseInt(dmsLng[1]) + parseInt(dmsLng[2])/60 + parseFloat(dmsLng[3])/3600;
-        if (dmsLng[4].toUpperCase() === "W") lng = -lng;
-        return { lat, lng };
-      }
-      return null;
-    }
-
-    function renderCurrentTab() {
-      const viewCards = document.getElementById('view-cards');
-      const viewMap = document.getElementById('view-map');
-      const viewStats = document.getElementById('view-stats');
-      const filterBar = document.getElementById('filter-bar');
-
-      viewCards.classList.add('hidden');
-      viewMap.classList.add('hidden');
-      viewStats.classList.add('hidden');
-      filterBar.classList.add('hidden');
-
-      if (currentTab === 'stats') {
-        viewStats.classList.remove('hidden');
-        renderCharts();
-        return;
-      }
-
-      if (currentTab === 'mappa') {
-        viewMap.classList.remove('hidden');
-        initMap();
-        setTimeout(() => map.invalidateSize(), 200);
-        renderMapMarkers(hikesData);
-        return;
-      }
-
-      filterBar.classList.remove('hidden');
-      viewCards.classList.remove('hidden');
-
-      const search = document.getElementById('search-input').value.toLowerCase();
-      const difficoltaFilter = document.getElementById('filter-difficolta').value;
-      const stagioneFilter = document.getElementById('filter-stagione').value;
-      const strollerOnly = document.getElementById('filter-stroller').checked;
-      const playgroundOnly = document.getElementById('filter-playground').checked;
-
-      const filtered = hikesData.filter(h => {
-        if (currentTab === 'da_fare' && h.fatto) return false;
-        if (currentTab === 'fatte' && !h.fatto) return false;
-        if (currentTab === 'preferite' && !h.preferito) return false;
-        if (difficoltaFilter !== 'all' && (h.difficolta || '') !== difficoltaFilter) return false;
-        if (stagioneFilter !== 'all' && !(h.stagione || []).includes(stagioneFilter)) return false;
-        if (strollerOnly && !h.passeggino) return false;
-        if (playgroundOnly && !h.parco_giochi) return false;
-        if (search && !(h.nome||'').toLowerCase().includes(search) && !(h.comune||'').toLowerCase().includes(search)) return false;
-        return true;
-      });
-
-      viewCards.innerHTML = '';
-
-      if (filtered.length === 0) {
-        viewCards.innerHTML = `<div class="col-span-full text-center py-16 text-gray-400">Nessuna camminata trovata.</div>`;
-        return;
-      }
-
-      filtered.forEach((hike) => {
-        const card = document.createElement('div');
-        card.className = `p-4 rounded-2xl border transition-all bg-white border-gray-200 shadow-sm hover:shadow-md flex flex-col justify-between ${hike.fatto ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-amber-400'}`;
-        
-        const coords = parseCoordinates(hike.parcheggio || '') || (hike.lat && hike.lng ? { lat: hike.lat, lng: hike.lng } : null);
-        const navUrl = coords ? `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}` : null;
-
-        const stagioniBadges = (Array.isArray(hike.stagione) ? hike.stagione : [hike.stagione || ''])
-          .filter(Boolean)
-          .map(s => `<span class="bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-medium">${s.split(' ')[0]}</span>`)
-          .join(' ');
-
-        card.innerHTML = `
-          <div>
-            <div class="flex justify-between items-start gap-2">
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded ${hike.tipo === '🧗‍♂️ Ferrata' ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}">
-                ${hike.tipo || '🥾 Camminata'}
-              </span>
-              <button data-id="${hike.id}" data-fav="${!hike.preferito}" class="btn-toggle-fav text-lg transition hover:scale-125">
-                ${hike.preferito ? '⭐' : '🖤'}
-              </button>
-            </div>
-
-            <h3 class="font-bold text-gray-900 text-base leading-snug mt-1">${hike.nome}</h3>
-
-            <p class="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-1.5">
-              <span>📍 ${hike.comune || 'Comune N/D'}</span>
-              <span>• ${hike.difficolta || ''}</span>
-            </p>
-
-            <div class="flex flex-wrap gap-1 mt-2">
-              ${stagioniBadges}
-              ${hike.passeggino ? '<span class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">👶 Passeggino</span>' : ''}
-              ${hike.parco_giochi ? '<span class="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">🛝 Parco Giochi</span>' : ''}
-              ${hike.parcheggio_pagamento ? '<span class="bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">🅿️💶 Pagamento</span>' : '<span class="bg-green-50 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">🅿️ Gratuito</span>'}
-            </div>
-
-            <div class="grid grid-cols-3 gap-2 mt-3 pt-2 border-t border-gray-100 text-xs font-semibold text-gray-700">
-              <div>⏱️ <span class="font-normal">${hike.tempo || 0}h</span></div>
-              <div>📏 <span class="font-normal">${hike.lunghezza_km || 0} km</span></div>
-              <div>📈 <span class="font-normal">${hike.dislivello_m || 0} m</span></div>
-            </div>
-
-            ${hike.note ? `<p class="text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded-lg italic">"${hike.note}"</p>` : ''}
-          </div>
-
-          <div class="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div class="flex items-center gap-2">
-              <!-- BOTTONE COMPLETATA DIRETTO -->
-              <button data-id="${hike.id}" data-fatto="${!hike.fatto}" class="btn-toggle-fatto font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1 text-xs ${hike.fatto ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-gray-100 text-gray-700 hover:bg-emerald-50 hover:text-emerald-700'}">
-                ${hike.fatto ? '✅ Completata' : '✅ Completa'}
-              </button>
-
-              ${navUrl ? `
-                <a href="${navUrl}" target="_blank" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1">
-                  🚗 Naviga
-                </a>
-              ` : ''}
-            </div>
-
-            <div class="flex items-center gap-2">
-              ${hike.link ? `<a href="${hike.link}" target="_blank" class="text-blue-600 font-bold hover:underline">Link ↗</a>` : ''}
-              <button data-id="${hike.id}" class="btn-edit text-gray-500 hover:text-emerald-600 font-semibold px-2 py-1 bg-gray-100 rounded-lg">✏️</button>
-              <button data-id="${hike.id}" class="btn-delete text-gray-400 hover:text-red-600 p-1">🗑️</button>
-            </div>
-          </div>
-        `;
-
-        viewCards.appendChild(card);
-      });
-
-      // EVENT LISTENER COMPLETATA DIRETTO
-      document.querySelectorAll('.btn-toggle-fatto').forEach(b => {
-        b.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const id = e.currentTarget.dataset.id;
-          const nuovoFatto = e.currentTarget.dataset.fatto === 'true';
-          await update(ref(db, `camminate/${id}`), { fatto: nuovoFatto });
-        });
-      });
-
-      // EVENT LISTENER PREFERITI
-      document.querySelectorAll('.btn-toggle-fav').forEach(b => {
-        b.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const id = e.currentTarget.dataset.id;
-          const nuovoFav = e.currentTarget.dataset.fav === 'true';
-          await update(ref(db, `camminate/${id}`), { preferito: nuovoFav });
-        });
-      });
-
-      // EVENT LISTENER MODIFICA & ELIMINAZIONE
-      document.querySelectorAll('.btn-edit').forEach(b => {
-        b.addEventListener('click', (e) => {
-          const id = e.currentTarget.dataset.id;
-          const hike = hikesData.find(h => h.id === id);
-          if (hike) openModalForEdit(hike);
-        });
-      });
-
-      document.querySelectorAll('.btn-delete').forEach(b => {
-        b.addEventListener('click', async (e) => {
-          const id = e.currentTarget.dataset.id;
-          if (confirm("Vuoi davvero eliminare questa camminata?")) {
-            await remove(ref(db, `camminate/${id}`));
-          }
-        });
-      });
-    }
-
-    function renderMapMarkers(data) {
-      activeMarkers.forEach(m => map.removeLayer(m));
-      activeMarkers = [];
-
-      data.forEach(hike => {
-        const coords = parseCoordinates(hike.parcheggio || '') || (hike.lat && hike.lng ? { lat: hike.lat, lng: hike.lng } : null);
-        if (coords) {
-          const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`;
-          const marker = L.marker([coords.lat, coords.lng])
-            .bindPopup(`
-              <div class="font-sans">
-                <b class="text-emerald-800 text-sm">${hike.nome}</b><br>
-                <span class="text-xs text-gray-600">📍 ${hike.comune || ''}</span><br>
-                <span class="text-xs">⏱️ ${hike.tempo || 0}h | 📏 ${hike.lunghezza_km || 0} km</span><br>
-                <a href="${navUrl}" target="_blank" class="inline-block mt-2 bg-emerald-600 text-white font-bold text-xs px-2 py-1 rounded no-underline">🚗 Indicazioni Parcheggio</a>
-              </div>
-            `)
-            .addTo(map);
-          activeMarkers.push(marker);
-        }
-      });
-    }
-
-    // GEOCODING AUTOMATICO
-    async function fetchComuneFromCoordsStr(str) {
-      const coords = parseCoordinates(str);
-      if (!coords) return;
-      const statusEl = document.getElementById('geo-status');
-      statusEl.innerText = "(Ricerca comune...)";
-
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lng}`);
-        const data = await res.json();
-        if (data && data.address) {
-          const comune = data.address.village || data.address.town || data.address.city || data.address.municipality || data.address.county || '';
-          document.getElementById('add-comune').value = comune;
-          statusEl.innerText = "✓ Trovato";
-        }
-      } catch (err) {
-        statusEl.innerText = "";
-      }
-    }
-
-    document.getElementById('add-parcheggio').addEventListener('change', (e) => {
-      fetchComuneFromCoordsStr(e.target.value);
-    });
-
-    // COMBOBOX STAGIONI MULTI-SELECT
-    const comboBtn = document.getElementById('combo-stagioni-btn');
-    const comboMenu = document.getElementById('combo-stagioni-menu');
-    const comboLabel = document.getElementById('combo-stagioni-label');
-
-    comboBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      comboMenu.classList.toggle('hidden');
-    });
-
-    document.addEventListener('click', (e) => {
-      if (!comboMenu.contains(e.target) && !comboBtn.contains(e.target)) {
-        comboMenu.classList.add('hidden');
-      }
-    });
-
-    function updateComboLabel() {
-      const checked = Array.from(document.querySelectorAll('.combo-stagione-cb:checked')).map(cb => cb.value);
-      if (checked.length === 0) {
-        comboLabel.innerText = "Seleziona una o più stagioni...";
-        comboLabel.classList.add('text-gray-500');
-        comboLabel.classList.remove('text-emerald-800', 'font-semibold');
-      } else {
-        comboLabel.innerText = checked.join(', ');
-        comboLabel.classList.remove('text-gray-500');
-        comboLabel.classList.add('text-emerald-800', 'font-semibold');
-      }
-    }
-
-    document.querySelectorAll('.combo-stagione-cb').forEach(cb => {
-      cb.addEventListener('change', updateComboLabel);
-    });
-
-    function setComboStagioniValues(stagioniArr) {
-      const list = Array.isArray(stagioniArr) ? stagioniArr : [stagioniArr || ''];
-      document.querySelectorAll('.combo-stagione-cb').forEach(cb => {
-        cb.checked = list.includes(cb.value);
-      });
-      updateComboLabel();
-    }
-
-    // MODALE GESTIONE
-    const modal = document.getElementById('modal-add');
-    
-    function openModalForAdd() {
-      document.getElementById('form-add-hike').reset();
-      document.getElementById('edit-id').value = "";
-      setComboStagioniValues([]);
-      document.getElementById('modal-title').innerText = "➕ Nuova Camminata";
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-    }
-
-    function openModalForEdit(hike) {
-      document.getElementById('edit-id').value = hike.id;
-      document.getElementById('add-nome').value = hike.nome || '';
-      document.getElementById('add-tipo').value = hike.tipo || '🥾 Camminata';
-      document.getElementById('add-comune').value = hike.comune || '';
-      document.getElementById('add-difficolta').value = hike.difficolta || '⭐⭐';
-      document.getElementById('add-tempo').value = hike.tempo || '';
-      document.getElementById('add-km').value = hike.lunghezza_km || '';
-      document.getElementById('add-dislivello').value = hike.dislivello_m || '';
-      document.getElementById('add-parcheggio').value = hike.parcheggio || (hike.lat && hike.lng ? `${hike.lat}, ${hike.lng}` : '');
-      document.getElementById('add-link').value = hike.link || '';
-      document.getElementById('add-note').value = hike.note || '';
-      document.getElementById('add-passeggino').checked = !!hike.passeggino;
-      document.getElementById('add-parco-giochi').checked = !!hike.parco_giochi;
-      document.getElementById('add-parcheggio-pagamento').checked = !!hike.parcheggio_pagamento;
-      document.getElementById('add-fatto').checked = !!hike.fatto;
-      document.getElementById('add-preferito').checked = !!hike.preferito;
-
-      setComboStagioniValues(hike.stagione);
-
-      document.getElementById('modal-title').innerText = "✏️ Modifica Camminata";
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-    }
-
-    document.getElementById('btn-open-modal').onclick = openModalForAdd;
-    document.getElementById('btn-close-modal').onclick = () => modal.classList.add('hidden');
-    document.getElementById('btn-cancel-modal').onclick = () => modal.classList.add('hidden');
-
-    document.getElementById('form-add-hike').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const editId = document.getElementById('edit-id').value;
-      const parcheggioStr = document.getElementById('add-parcheggio').value.trim();
-      const coords = parseCoordinates(parcheggioStr);
-
-      const selectedStagioni = Array.from(document.querySelectorAll('.combo-stagione-cb:checked')).map(cb => cb.value);
-
-      const hikePayload = {
-        nome: document.getElementById('add-nome').value.trim(),
-        tipo: document.getElementById('add-tipo').value,
-        comune: document.getElementById('add-comune').value.trim(),
-        difficolta: document.getElementById('add-difficolta').value,
-        tempo: parseFloat(document.getElementById('add-tempo').value) || 0,
-        lunghezza_km: parseFloat(document.getElementById('add-km').value) || 0,
-        dislivello_m: parseInt(document.getElementById('add-dislivello').value) || 0,
-        parcheggio: parcheggioStr,
-        lat: coords ? coords.lat : null,
-        lng: coords ? coords.lng : null,
-        stagione: selectedStagioni,
-        link: document.getElementById('add-link').value.trim(),
-        note: document.getElementById('add-note').value.trim(),
-        passeggino: document.getElementById('add-passeggino').checked,
-        parco_giochi: document.getElementById('add-parco-giochi').checked,
-        parcheggio_pagamento: document.getElementById('add-parcheggio-pagamento').checked,
-        fatto: document.getElementById('add-fatto').checked,
-        preferito: document.getElementById('add-preferito').checked
-      };
-
-      if (editId) {
-        await update(ref(db, `camminate/${editId}`), hikePayload);
-      } else {
-        await push(ref(db, 'camminate'), hikePayload);
-      }
-
-      modal.classList.add('hidden');
-    });
-
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.tab-btn').forEach(b => {
-          b.classList.remove('tab-active');
-          b.classList.add('tab-inactive');
-        });
-        e.currentTarget.classList.remove('tab-inactive');
-        e.currentTarget.classList.add('tab-active');
-
-        currentTab = e.currentTarget.dataset.tab;
-        renderCurrentTab();
-      });
-    });
-
-    // Filtri
-    document.getElementById('search-input').addEventListener('input', renderCurrentTab);
-    document.getElementById('filter-difficolta').addEventListener('change', renderCurrentTab);
-    document.getElementById('filter-stagione').addEventListener('change', renderCurrentTab);
-    document.getElementById('filter-stroller').addEventListener('change', renderCurrentTab);
-    document.getElementById('filter-playground').addEventListener('change', renderCurrentTab);
-  </script>
+document.getElementById("search-input").addEventListener("input",renderCurrentTab);
+document.getElementById("filter-difficolta").addEventListener("change",renderCurrentTab);
+document.getElementById("filter-tipo").addEventListener("change",renderCurrentTab);
+document.getElementById("filter-stagione").addEventListener("change",renderCurrentTab);
+document.getElementById("filter-stroller").addEventListener("change",renderCurrentTab);
+document.getElementById("filter-playground").addEventListener("change",renderCurrentTab);
+document.getElementById("sort-select").addEventListener("change",renderCurrentTab);
+const slider=document.getElementById("distance-slider");
+slider.addEventListener("input",()=>{document.getElementById("distance-value").innerText=slider.value>=200?"200+ km":`${slider.value} km`;renderCurrentTab();});
+</script>
 </body>
 </html>
